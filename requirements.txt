@@ -1,0 +1,6 @@
+discord.py==1.7
+jishaku
+PyYaml
+psutil
+databases[postgresql]
+SQLAlchemy
