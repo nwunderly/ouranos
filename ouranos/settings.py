@@ -31,3 +31,21 @@ class Settings:
     activities = [
         f'playing version {version}!',
     ]
+
+    intents = {
+        'guilds': True,
+        'members': True,
+        'bans': True,
+        'emojis': True,
+        'integrations': False,
+        'webhooks': False,
+        'invites': False,
+        'voice_states': False,
+        'presences': False,
+        'guild_messages': True,
+        'dm_messages': False,
+        'guild_reactions': False,
+        'dm_reactions': False,
+        'guild_typing': False,
+        'dm_typing': False
+    }
