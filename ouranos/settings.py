@@ -28,5 +28,5 @@ class Settings:
     }
 
     activities = [
-        'playing version '+version+"!",
+        f'playing version {version}!',
     ]

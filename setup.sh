@@ -1,2 +1,2 @@
-mkdir data
+#mkdir data
 mkdir logs
