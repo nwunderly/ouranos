@@ -35,7 +35,7 @@ async def prefix(_bot, message, only_guild_prefix=False):
 class Ouranos(commands.AutoShardedBot):
     def __init__(self, token, db_url, **kwargs):
         super().__init__(command_prefix=prefix, case_insensitive=True,
-                         description='Super cool epic bot', **kwargs)
+                         description='Ouranos by nwunder#4003', **kwargs)
         self.__token = token
         self.__db_url = db_url
         self._nwunder = None
@@ -51,13 +51,6 @@ class Ouranos(commands.AutoShardedBot):
 
     async def start(self, *args, **kwargs):
         """Custom start method, handles async setup before login."""
-        logger.debug("Start method called.")
-        try:
-            self.loop.remove_signal_handler(signal.SIGINT)
-            self.loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(self.close()))
-        except NotImplementedError:
-            pass
-
         logger.info("Running bot setup.")
         await self.setup()
 
