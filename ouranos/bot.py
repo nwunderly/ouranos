@@ -34,15 +34,20 @@ async def prefix(_bot, message, only_guild_prefix=False):
 
 class Ouranos(commands.AutoShardedBot):
     def __init__(self, token, db_url, **kwargs):
-        super().__init__(command_prefix=prefix, case_insensitive=True,
-                         description='Ouranos by nwunder#4003', **kwargs)
+        super().__init__(
+            command_prefix=prefix,
+            case_insensitive=True,
+            description=Settings.description,
+            help_command=commands.MinimalHelpCommand(),
+            intents=discord.Intents.all(),
+            **kwargs
+        )
         self.__token = token
         self.__db_url = db_url
         self._nwunder = None
         self._running = False
         self._exit_code = 0
         self.started_at = datetime.datetime.now()
-        self.help_command = commands.MinimalHelpCommand()
         logger.info(f'Initialization complete.')
 
     def run(self):
