@@ -40,7 +40,7 @@ class Ouranos(commands.AutoShardedBot):
             case_insensitive=True,
             description=Settings.description,
             help_command=commands.MinimalHelpCommand(),
-            intents=discord.Intents(**Settings.intents),
+            intents=Settings.intents,
             **kwargs
         )
         self.__token = token
