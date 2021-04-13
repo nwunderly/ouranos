@@ -1,15 +1,16 @@
-import asyncio
 import datetime
 import discord
 import logging
 import random
-import signal
 import traceback
+import signal
+import asyncio
 
 from discord.ext import commands
 from discord.ext import tasks
 
 from ouranos.settings import Settings
+from ouranos.utils import db
 
 
 logger = logging.getLogger(__name__)
@@ -17,22 +18,22 @@ logger = logging.getLogger(__name__)
 
 async def prefix(_bot, message, only_guild_prefix=False):
     default = Settings.prefix
-    return default
-    # if not message.guild:
-    #     return commands.when_mentioned(_bot, message) + [default]
-    # config = await _bot.db.fetch_config(message.guild.id)
-    # if config:
-    #     p = config.prefix
-    # else:
-    #     p = default
-    # if only_guild_prefix:
-    #     return p
-    # else:
-    #     return commands.when_mentioned(_bot, message) + [p]
-
+    if not message.guild:
+        return commands.when_mentioned(_bot, message) + [default]
+    config = await db.get_config(message.guild)
+    if config:
+        p = config['prefix']
+    else:
+        p = default
+    if only_guild_prefix:
+        return p
+    else:
+        return commands.when_mentioned(_bot, message) + [p]
 
 
 class Ouranos(commands.AutoShardedBot):
+    bot = None
+
     def __init__(self, token, db_url, **kwargs):
         super().__init__(
             command_prefix=prefix,
@@ -48,6 +49,7 @@ class Ouranos(commands.AutoShardedBot):
         self._running = False
         self._exit_code = 0
         self.started_at = datetime.datetime.now()
+        Ouranos.bot = self
         logger.info(f'Initialization complete.')
 
     def run(self):
@@ -56,6 +58,13 @@ class Ouranos(commands.AutoShardedBot):
 
     async def start(self, *args, **kwargs):
         """Custom start method, handles async setup before login."""
+        logger.debug("Start method called.")
+        try:
+            self.loop.remove_signal_handler(signal.SIGINT)
+            self.loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(self.close()))
+        except NotImplementedError:
+            pass
+
         logger.info("Running bot setup.")
         await self.setup()
 
@@ -108,14 +117,14 @@ class Ouranos(commands.AutoShardedBot):
         Use this for any async tasks to be performed before the bot starts.
         (THE BOT WILL NOT BE LOGGED IN WHEN THIS IS CALLED)
         """
+        await db.init(self.__db_url)
         await self.load_cogs(Settings.cogs)
-        # TODO: database stuff
 
     async def cleanup(self):
         """Called when bot is closed, before logging out.
         Use this for any async tasks to be performed before the bot exits.
         """
-        pass
+        await db.Tortoise.close_connections()
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user}.')

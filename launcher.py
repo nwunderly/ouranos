@@ -27,6 +27,7 @@ def start_bot(args):
 
     setup_logger("ouranos", level)
     setup_logger('discord', logging.INFO)
+    setup_logger('tortoise', logging.INFO)
 
     token = TOKEN_DEV if dev else TOKEN_PROD
     db_url = DB_URL_DEV if dev else DB_URL_PROD
