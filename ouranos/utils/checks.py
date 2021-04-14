@@ -34,7 +34,7 @@ async def config_perm_check(ctx, permission):
     if await is_bot_admin(ctx.author):
         return True
 
-    config = await db.get_config(ctx.guild.id)
+    config = await db.get_config(ctx.guild)
     if config:
         role_id = {'admin': config.admin_role_id, 'mod': config.mod_role_id}[permission]
         return ctx.guild.get_role(role_id) in ctx.author.roles
