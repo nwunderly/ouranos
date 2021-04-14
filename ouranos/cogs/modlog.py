@@ -351,6 +351,7 @@ class Modlog(Cog):
             infraction = await db.Infraction.get_or_none(guild_id=ctx.guild.id, infraction_id=infraction_id)
             message = await modlog_channel.fetch_message(infraction.message_id)
             infraction.reason = f"{new_reason} (edited by {ctx.author})"
+            await infraction.save()
             content = edit_modlog_entry(message.content, reason=new_reason)
             await message.edit(content=content)
         except Exception as e:
@@ -368,6 +369,7 @@ class Modlog(Cog):
             infraction = await db.Infraction.get_or_none(guild_id=ctx.guild.id, infraction_id=infraction_id)
             message = await modlog_channel.fetch_message(infraction.message_id)
             infraction.note = f"{new_note} (edited by {ctx.author})"
+            await infraction.save()
             content = edit_modlog_entry(message.content, note=new_note)
             await message.edit(content=content)
         except Exception as e:
