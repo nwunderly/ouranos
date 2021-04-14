@@ -23,7 +23,7 @@ async def prefix(_bot, message, only_guild_prefix=False):
         return commands.when_mentioned(_bot, message) + [default]
     config = await db.get_config(message.guild)
     if config:
-        p = config['prefix']
+        p = config.prefix
     else:
         p = default
     if only_guild_prefix:
@@ -46,7 +46,6 @@ class Ouranos(commands.AutoShardedBot):
         )
         self.__token = token
         self.__db_url = db_url
-        self._nwunder = None
         self._running = False
         self._exit_code = 0
         self._user_blacklist = set()
@@ -131,7 +130,6 @@ class Ouranos(commands.AutoShardedBot):
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user}.')
-        self._nwunder = await self.fetch_user(204414611578028034)
         if not self._running:
             self.update_presence.start()
         self._running = True
@@ -149,8 +147,11 @@ class Ouranos(commands.AutoShardedBot):
             e = await self.get_embed(message)
             await message.channel.send(embed=e)
 
+    async def prefix(self, message):
+        return await self.command_prefix(self, message, only_guild_prefix=True)
+
     async def get_embed(self, message=None):
-        p = await self.command_prefix(self, message, only_guild_prefix=True)
+        p = await self.prefix(message)
         e = discord.Embed(title=f"Ouranos v{Settings.version}",
                           color=Settings.embed_color,
                           description=f"Prefix: `{p}`")

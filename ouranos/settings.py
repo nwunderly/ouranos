@@ -5,6 +5,7 @@ class Settings:
     version = '0.1.0'
     prefix = "?"
     description = 'Ouranos by nwunder#4003'
+    author = "nwunder#4003"
 
     embed_color = discord.Color(0x7289da)
 
@@ -13,6 +14,7 @@ class Settings:
 
     cogs = [
         'jishaku',
+        'ouranos.cogs.config',
     ]
 
     admins = [

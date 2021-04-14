@@ -35,7 +35,10 @@ async def config_perm_check(ctx, permission):
         return True
 
     config = await db.get_config(ctx.guild.id)
-    return ctx.guild.get_role(config.get(f'{permission}_role_id')) in ctx.author.roles
+    if config:
+        role_id = {'admin': config.admin_role_id, 'mod': config.mod_role_id}[permission]
+        return ctx.guild.get_role(role_id) in ctx.author.roles
+    return False
 
 
 async def guild_perm_check(ctx, perms, *, check=all):

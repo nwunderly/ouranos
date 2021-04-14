@@ -15,7 +15,7 @@ class Config(Model):
     guild_id = fields.BigIntField(pk=True, generated=False)
     prefix = fields.TextField(default=Settings.prefix)
     modlog_channel_id = fields.BigIntField(default=0)
-    muted_role_id = fields.BigIntField(default=0)
+    mute_role_id = fields.BigIntField(default=0)
     admin_role_id = fields.BigIntField(default=0)
     mod_role_id = fields.BigIntField(default=0)
     dm_on_infraction = fields.BooleanField(default=True)
@@ -38,6 +38,19 @@ async def create_config(guild):
     config = await Config.create(guild_id=guild.id)
     config_cache[guild.id] = config
     return True
+
+
+async def update_config(*, guild=None, config=None, **kwargs):
+    if guild:
+        config = await get_config(guild)
+        guild_id = guild.id
+    else:
+        guild_id = config.guild_id
+    for key, value in kwargs.items():
+        config.__setattr__(key, value)
+    await config.save()
+    config_cache[guild_id] = config
+    return config
 
 
 class Infraction(Model):
