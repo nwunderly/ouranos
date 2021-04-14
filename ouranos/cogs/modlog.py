@@ -352,7 +352,7 @@ class Modlog(Cog):
             message = await modlog_channel.fetch_message(infraction.message_id)
             infraction.reason = f"{new_reason} (edited by {ctx.author})"
             await infraction.save()
-            content = edit_modlog_entry(message.content, reason=new_reason)
+            content = edit_modlog_entry(message.content, reason=infraction.reason)
             await message.edit(content=content)
         except Exception as e:
             logger.exception(e)
@@ -370,7 +370,7 @@ class Modlog(Cog):
             message = await modlog_channel.fetch_message(infraction.message_id)
             infraction.note = f"{new_note} (edited by {ctx.author})"
             await infraction.save()
-            content = edit_modlog_entry(message.content, note=new_note)
+            content = edit_modlog_entry(message.content, note=infraction.note)
             await message.edit(content=content)
         except Exception as e:
             logger.exception(e)
