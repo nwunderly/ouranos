@@ -15,6 +15,7 @@ class Settings:
     cogs = [
         'jishaku',
         'ouranos.cogs.config',
+        'ouranos.cogs.modlog',
     ]
 
     admins = [

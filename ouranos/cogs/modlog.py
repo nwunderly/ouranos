@@ -50,7 +50,7 @@ class Modlog(Cog):
     async def new_infraction(self, guild_id, user_id, mod_id, type, reason, note, duration):
         infraction_id = await self.get_case_id(guild_id)
         created_at = datetime.datetime.now()
-        ends_at = created_at + duration
+        ends_at = created_at + duration if duration else None
         infraction = await db.Infraction.create(
             guild_id=guild_id,
             infraction_id=infraction_id,
@@ -88,7 +88,7 @@ class Modlog(Cog):
 
     async def log_mute(self, guild, user, mod, reason, note, duration):
         infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'mute', reason, note, duration)
-        duration = approximate_timedelta(duration)
+        duration = approximate_timedelta(duration) if duration else None
         content = format_modlog_entry(EMOJI_MUTE, 'MEMBER MUTED', infraction_id, duration, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
@@ -201,7 +201,7 @@ class Modlog(Cog):
             logger.debug("detected unmute")
             async for entry in guild.audit_logs(limit=5):
                 if entry.action == discord.AuditLogAction.member_role_update and mute_role in entry.before.roles and mute_role not in entry.after.roles:
-                    if entry.id == self._last_audit_id_cache[guild.id]:
+                    if entry.id == self._last_audit_id_cache.get(guild.id):
                         return
                     self._last_audit_id_cache[guild.id] = entry.id
                     logger.debug("unmute audit log entry found")
@@ -214,7 +214,7 @@ class Modlog(Cog):
             logger.debug("detected mute")
             async for entry in guild.audit_logs(limit=5):
                 if entry.action == discord.AuditLogAction.member_role_update and mute_role in entry.after.roles and mute_role not in entry.before.roles:
-                    if entry.id == self._last_audit_id_cache[guild.id]:
+                    if entry.id == self._last_audit_id_cache.get(guild.id):
                         return
                     self._last_audit_id_cache[guild.id] = entry.id
                     logger.debug("mute audit log entry found")
@@ -303,12 +303,12 @@ class Modlog(Cog):
 
     def history_to_dict(self, history):
         return {
-            'warns': history.warns,
-            'mutes': history.mutes,
-            'unmutes': history.unmutes,
-            'kicks': history.kicks,
-            'bans': history.bans,
-            'unbans': history.unbans,
+            'warn': history.warn,
+            'mute': history.mute,
+            'unmute': history.unmute,
+            'kick': history.kick,
+            'ban': history.ban,
+            'unban': history.unban,
         }
 
     @infraction.command()
