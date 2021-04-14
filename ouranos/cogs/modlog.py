@@ -43,7 +43,7 @@ def edit_modlog_entry(content, **kwargs):
         entry[match.group(1).lower()] = match.group(2)
 
     entry.update(kwargs)
-    return first_line + "".join(f"**{key.upper()}:** {value}\n" for key, value in entry.items())
+    return first_line + "".join(f"**{key.capitalize()}:** {value}\n" for key, value in entry.items())
 
 
 class Modlog(Cog):
@@ -343,7 +343,7 @@ class Modlog(Cog):
 
     @infraction.command(aliases=['edit-reason'])
     @server_mod()
-    async def edit_reason(self, ctx, infraction_id: int, field, *, new_reason):
+    async def edit_reason(self, ctx, infraction_id: int, *, new_reason):
         """Edit the reason for an infraction."""
         try:
             config = await db.get_config(ctx.guild)
@@ -360,7 +360,7 @@ class Modlog(Cog):
         
     @infraction.command(aliases=['edit-note'])
     @server_mod()
-    async def edit_note(self, ctx, infraction_id: int, field, *, new_note):
+    async def edit_note(self, ctx, infraction_id: int, *, new_note):
         """Edit the note for an infraction."""
         try:
             config = await db.get_config(ctx.guild)
