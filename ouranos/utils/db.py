@@ -96,12 +96,12 @@ class History(Model):
     id = fields.IntField(pk=True, generated=True)
     guild_id = fields.BigIntField()
     user_id = fields.BigIntField()
-    warns = IntArrayField()
-    mutes = IntArrayField()
-    unmutes = IntArrayField()
-    kicks = IntArrayField()
-    bans = IntArrayField()
-    unbans = IntArrayField()
+    warn = IntArrayField()
+    mute = IntArrayField()
+    unmute = IntArrayField()
+    kick = IntArrayField()
+    ban = IntArrayField()
+    unban = IntArrayField()
 
     class Meta:
         unique_together = ("guild_id", "user_id")

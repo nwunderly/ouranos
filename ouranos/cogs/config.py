@@ -1,12 +1,16 @@
 import discord
+import logging
 
 from discord.ext import commands
 from typing import Union
 
 from ouranos.cog import Cog
 from ouranos.utils import db
-from ouranos.utils.checks import is_bot_admin, server_admin, server_mod
-from ouranos.utils.constants import green_tick, red_tick, yellow_tick
+from ouranos.utils.checks import is_bot_admin, server_admin
+from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
+
+
+logger = logging.getLogger(__name__)
 
 
 def config_exists(exists):
@@ -38,9 +42,9 @@ class Config(Cog):
     async def init(self, ctx):
         """Create a server config."""
         if await db.create_config(ctx.guild):
-            await ctx.send(f"{green_tick} Successfully created a server config!")
+            await ctx.send(f"{TICK_GREEN} Successfully created a server config!")
         else:
-            await ctx.send(f"{red_tick} This server is already set up!")
+            await ctx.send(f"{TICK_RED} This server is already set up!")
 
     @commands.group(invoke_without_command=True)
     @server_admin()
@@ -48,7 +52,7 @@ class Config(Cog):
         config = await db.get_config(ctx.guild)
         if not config:
             p = await ctx.bot.prefix(ctx.message)
-            return await ctx.send(f"{yellow_tick} This server is not set up yet. Use {p}init to create a config.")
+            return await ctx.send(f"{TICK_YELLOW} This server is not set up yet. Use {p}init to create a config.")
         await ctx.send(
             f"```\n"
             f"Configuration for {ctx.guild.name} ({ctx.guild.id})\n"
@@ -70,9 +74,9 @@ class Config(Cog):
         if not prefix:
             return await ctx.send(f"My prefix here is `{config.prefix}`.")
         elif len(prefix) > 10:
-            return await ctx.send(f"{red_tick} That prefix is too long! Prefix must be <=10 characters.")
+            return await ctx.send(f"{TICK_RED} That prefix is too long! Prefix must be <=10 characters.")
         await db.update_config(config=config, prefix=prefix)
-        await ctx.send(f"{green_tick} Prefix updated.")
+        await ctx.send(f"{TICK_GREEN} Prefix updated.")
 
     @config.command()
     @server_admin()
@@ -88,7 +92,7 @@ class Config(Cog):
         else:
             channel_id = channel.id
         await db.update_config(config=config, modlog_channel_id=channel_id)
-        await ctx.send(f"{green_tick} Modlog channel updated.")
+        await ctx.send(f"{TICK_GREEN} Modlog channel updated.")
 
     @config.command()
     @server_admin()
@@ -105,7 +109,7 @@ class Config(Cog):
         else:
             role_id = role.id
         await db.update_config(config=config, mute_role_id=role_id)
-        await ctx.send(f"{green_tick} Mute role updated.")
+        await ctx.send(f"{TICK_GREEN} Mute role updated.")
 
     @config.command()
     @server_admin()
@@ -122,7 +126,7 @@ class Config(Cog):
         else:
             role_id = role.id
         await db.update_config(config=config, admin_role_id=role_id)
-        await ctx.send(f"{green_tick} Admin role updated.")
+        await ctx.send(f"{TICK_GREEN} Admin role updated.")
 
     @config.command()
     @server_admin()
@@ -139,7 +143,7 @@ class Config(Cog):
         else:
             role_id = role.id
         await db.update_config(config=config, mod_role_id=role_id)
-        await ctx.send(f"{green_tick} Mod role updated.")
+        await ctx.send(f"{TICK_GREEN} Mod role updated.")
 
     @config.command()
     @server_admin()
@@ -151,7 +155,7 @@ class Config(Cog):
             dm = config.dm_on_infraction
             return await ctx.send(f"dm_on_infraction is set to `{dm}` for this server.")
         await db.update_config(config=config, dm_on_infraction=new_setting)
-        await ctx.send(f"{green_tick} dm_on_infraction updated.")
+        await ctx.send(f"{TICK_GREEN} dm_on_infraction updated.")
 
 
 def setup(bot):

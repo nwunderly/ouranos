@@ -38,9 +38,7 @@ def setup_logger(name, level):
     return _logger
 
 
-def approximate_timedelta(start, end):
-    dt = end - start
-
+def approximate_timedelta(dt):
     if dt.days >= 7:
         delta = f"{(_w := dt.days // 7)} week" + ('s' if _w > 1 else '')
     elif dt.days >= 1:

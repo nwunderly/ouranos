@@ -165,7 +165,7 @@ class Ouranos(commands.AutoShardedBot):
             exc = traceback.format_exception(exception.__class__, exception, exception.__traceback__)
             exc = ''.join(exc) if isinstance(exc, list) else exc
             logger.error(f"Error invoking command '{ctx.command.qualified_name}' / "
-                         f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
+                         f"author {ctx.author.id}, self {ctx.guild.id if ctx.guild else None}, "
                          f"channel {ctx.channel.id}, "
                          f"message {ctx.message.id}\n"
                          f"{exc}")
@@ -173,7 +173,7 @@ class Ouranos(commands.AutoShardedBot):
     async def on_command_completion(self, ctx):
         logger.info(f"Command '{ctx.command.qualified_name}' invoked / "
                     f"author {ctx.author.id}, "
-                    f"guild {ctx.guild.id if ctx.guild else None}, "
+                    f"self {ctx.guild.id if ctx.guild else None}, "
                     f"channel {ctx.channel.id}, "
                     f"message {ctx.message.id}")
 

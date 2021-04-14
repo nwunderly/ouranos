@@ -1,11 +1,17 @@
-red_tick = '<:redTick:699377558361341952>'
-green_tick = '<:greenTick:699377495178346546>'
-gray_tick = '<:GreyTick:652202011965521950>'
-yellow_tick = '⚠'
-status = {
-    'online': '<:status_online:699642822378258547>',
-    'idle': '<:status_idle:699642825087647784>',
-    'dnd': '<:status_dnd:699642826585145397>',
-    'offline': '<:status_offline:699642828309004420>',
-    'streaming': '<:status_streaming:699642830842363984>'
-}
+TICK_RED = '<:redTick:699377558361341952>'
+TICK_GREEN = '<:greenTick:699377495178346546>'
+TICK_GRAY = '<:GreyTick:652202011965521950>'
+TICK_YELLOW = '⚠'
+
+STATUS_ONLINE = '<:status_online:699642822378258547>'
+STATUS_IDLE = '<:status_idle:699642825087647784>'
+STATUS_DND = '<:status_dnd:699642826585145397>'
+STATUS_OFFLINE = '<:status_offline:699642828309004420>'
+STATUS_STREAMING = '<:status_streaming:699642830842363984>'
+
+EMOJI_WARN = "👀"
+EMOJI_MUTE = "🤐"
+EMOJI_UNMUTE = "🙏"
+EMOJI_KICK = "🦵"
+EMOJI_BAN = "🔨"
+EMOJI_UNBAN = "😎"
