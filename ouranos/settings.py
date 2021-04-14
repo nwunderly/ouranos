@@ -4,7 +4,7 @@ import discord
 class Settings:
     version = '0.1.0'
     prefix = "?"
-    description = 'Ouranos by nwunder#4003'
+    description = 'A simple and opinionated Discord mod bot.'
     author = "nwunder#4003"
 
     embed_color = discord.Color(0x7289da)
@@ -12,9 +12,15 @@ class Settings:
     logging_channel = 0000000000000000
     invite_permissions = 2110258423
 
+    invite_url = 'https://discord.com/oauth2/authorize?client_id=831312219517091871&scope=bot&permissions=2110258423'
+    support_url = 'https://discord.gg/d25W5PS'
+    repo_url = 'https://github.com/nwunderly/ouranos'
+
     cogs = [
         'jishaku',
+        'ouranos.cogs.admin',
         'ouranos.cogs.config',
+        'ouranos.cogs.general',
         'ouranos.cogs.modlog',
     ]
 

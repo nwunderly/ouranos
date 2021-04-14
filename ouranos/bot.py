@@ -48,8 +48,7 @@ class Ouranos(commands.AutoShardedBot):
         self.__db_url = db_url
         self._running = False
         self._exit_code = 0
-        self._user_blacklist = set()
-        self._guild_blacklist = set()
+        self._blacklist = set()
         self.started_at = datetime.datetime.now()
         Ouranos.bot = self
         logger.info(f'Initialization complete.')
@@ -144,18 +143,14 @@ class Ouranos(commands.AutoShardedBot):
 
     async def process_mention(self, message):
         if message.content in [self.user.mention, '<@!%s>' % self.user.id]:
-            e = await self.get_embed(message)
+            p = await self.prefix(message)
+            e = discord.Embed(title=f"Ouranos v{Settings.version}",
+                              color=Settings.embed_color,
+                              description=f"Prefix: `{p}`")
             await message.channel.send(embed=e)
 
     async def prefix(self, message):
         return await self.command_prefix(self, message, only_guild_prefix=True)
-
-    async def get_embed(self, message=None):
-        p = await self.prefix(message)
-        e = discord.Embed(title=f"Ouranos v{Settings.version}",
-                          color=Settings.embed_color,
-                          description=f"Prefix: `{p}`")
-        return e
 
     async def on_error(self, event_method, *args, **kwargs):
         logger.error(f"Ignoring exception in {event_method}:\n{traceback.format_exc()}")
@@ -194,22 +189,16 @@ class Ouranos(commands.AutoShardedBot):
 
     def blacklisted(self, *ids):
         for i in ids:
-            if i in self._user_blacklist or i in self._guild_blacklist:
+            if i in self._blacklist:
                 return True
         return False
 
-    def load_blacklists(self):
-        with open('/data/user_blacklist.json') as fp:
+    def load_blacklist(self):
+        with open('./data/id_blacklist.json') as fp:
             data = json.load(fp)
-            self._user_blacklist = set(data)
-        with open('/data/guild_blacklist.json') as fp:
-            data = json.load(fp)
-            self._guild_blacklist = set(data)
+            self._blacklist = set(data)
 
-    def dump_blacklists(self):
-        with open('/data/user_blacklist.json') as fp:
-            data = list(self._user_blacklist)
-            json.dump(data, fp)
-        with open('/data/guild_blacklist.json') as fp:
-            data = list(self._guild_blacklist)
+    def dump_blacklist(self):
+        with open('./data/id_blacklist.json', 'w') as fp:
+            data = list(self._blacklist)
             json.dump(data, fp)
