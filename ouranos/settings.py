@@ -12,7 +12,7 @@ class Settings:
     logging_channel = 0000000000000000
     invite_permissions = 2110258423
 
-    invite_url = 'https://discord.com/oauth2/authorize?client_id=831312219517091871&scope=bot&permissions=2110258423'
+    invite_url = 'https://discord.com/oauth2/authorize?client_id=831312219517091871&scope=bot+applications.commands&permissions=2110258423'
     support_url = 'https://discord.gg/d25W5PS'
     repo_url = 'https://github.com/nwunderly/ouranos'
 
