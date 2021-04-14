@@ -1,5 +1,7 @@
 import asyncio
 import datetime
+import re
+
 import discord
 import logging
 from typing import Union
@@ -27,6 +29,21 @@ def format_modlog_entry(emoji, title, infraction_id, duration, user, mod, reason
         f"**Note:** {note}\n",
     ]
     return "".join(lines)
+
+
+def edit_modlog_entry(content, **kwargs):
+    split = content.split('\n')
+    first_line = split[0] + '\n'
+    split = split[1:]
+
+    entry = {}
+    pattern = re.compile(r'\*\*(\w+):\*\* (.*)')
+    for line in split:
+        match = pattern.match(line)
+        entry[match.group(1).lower()] = match.group(2)
+
+    entry.update(kwargs)
+    return first_line + "".join(f"**{key.upper()}:** {value}\n" for key, value in entry.items())
 
 
 class Modlog(Cog):
@@ -146,12 +163,13 @@ class Modlog(Cog):
                 reason = entry.reason
                 break
 
-        if isinstance(user, discord.User):  # forceban
-            logger.debug("it's a forceban")
-            await self.log_forceban(guild, user, moderator, reason, None)
-        else:  # regular ban
-            logger.debug("it's a regular ban")
-            await self.log_ban(guild, user, moderator, reason, None)
+        # TODO: fix this
+        # if isinstance(user, discord.User):  # forceban
+        #     logger.debug("it's a forceban")
+        #     await self.log_forceban(guild, user, moderator, reason, None)
+        # else:  # regular ban
+        #     logger.debug("it's a regular ban")
+        await self.log_ban(guild, user, moderator, reason, None)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
@@ -323,22 +341,39 @@ class Modlog(Cog):
             return await ctx.send(f'{e.__class__.__name__}: {e}')
         await ctx.send("```py\n" + serialized + "\n```")
 
-    # @infraction.command()
-    # @server_mod()
-    # async def edit(self, ctx, infraction_id: int, *, new_reason):
-    #     """Edit the reason for an infraction."""
-    #     try:
-    #         config = await db.get_config(ctx.guild)
-    #         modlog_channel = ctx.guild.get_channel(config.modlog_channel_id)
-    #         infraction = await db.Infraction.get_or_none(guild_id=ctx.guild.id, infraction_id=infraction_id)
-    #         message = await modlog_channel.fetch_message(infraction.message_id)
-    #         infraction.reason = f"{new_reason} (edited by {ctx.author})"
-    #         content = format_modlog_entry()
-    #         await message.edit(content=content)
-    #     except Exception as e:
-    #         logger.exception(e)
-    #         return await ctx.send(f'{e.__class__.__name__}: {e}')
-    #     await ctx.send(message.jump_url)
+    @infraction.command(aliases=['edit-reason'])
+    @server_mod()
+    async def edit_reason(self, ctx, infraction_id: int, field, *, new_reason):
+        """Edit the reason for an infraction."""
+        try:
+            config = await db.get_config(ctx.guild)
+            modlog_channel = ctx.guild.get_channel(config.modlog_channel_id)
+            infraction = await db.Infraction.get_or_none(guild_id=ctx.guild.id, infraction_id=infraction_id)
+            message = await modlog_channel.fetch_message(infraction.message_id)
+            infraction.reason = f"{new_reason} (edited by {ctx.author})"
+            content = edit_modlog_entry(message.content, reason=new_reason)
+            await message.edit(content=content)
+        except Exception as e:
+            logger.exception(e)
+            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        await ctx.send(message.jump_url)
+        
+    @infraction.command(aliases=['edit-note'])
+    @server_mod()
+    async def edit_note(self, ctx, infraction_id: int, field, *, new_note):
+        """Edit the note for an infraction."""
+        try:
+            config = await db.get_config(ctx.guild)
+            modlog_channel = ctx.guild.get_channel(config.modlog_channel_id)
+            infraction = await db.Infraction.get_or_none(guild_id=ctx.guild.id, infraction_id=infraction_id)
+            message = await modlog_channel.fetch_message(infraction.message_id)
+            infraction.note = f"{new_note} (edited by {ctx.author})"
+            content = edit_modlog_entry(message.content, note=new_note)
+            await message.edit(content=content)
+        except Exception as e:
+            logger.exception(e)
+            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        await ctx.send(message.jump_url)
 
     # @infraction.command()
     # @server_mod()
