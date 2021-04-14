@@ -71,7 +71,7 @@ class Modlog(Cog):
         return infraction_id, infraction
 
     async def set_message_id(self, infraction, message_id):
-        infraction.infraction_id = message_id
+        infraction.message_id = message_id
         await infraction.save()
 
     async def dispatch_log_message(self, guild, content):
@@ -81,44 +81,44 @@ class Modlog(Cog):
         return message.id
 
     async def log_warn(self, guild, user, mod, reason, note):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'warn', reason, note, None)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'warn', reason, note, None)
         content = format_modlog_entry(EMOJI_WARN, 'MEMBER WARNED', infraction_id, None, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
 
     async def log_mute(self, guild, user, mod, reason, note, duration):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'mute', reason, note, duration)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'mute', reason, note, duration)
         duration = approximate_timedelta(duration) if duration else None
         content = format_modlog_entry(EMOJI_MUTE, 'MEMBER MUTED', infraction_id, duration, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
 
     async def log_unmute(self, guild, user, mod, reason, note):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'unmute', reason, note, None)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'unmute', reason, note, None)
         content = format_modlog_entry(EMOJI_UNMUTE, 'MEMBER UNMUTED', infraction_id, None, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
 
     async def log_kick(self, guild, user, mod, reason, note):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'kick', reason, note, None)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'kick', reason, note, None)
         content = format_modlog_entry(EMOJI_KICK, 'MEMBER KICKED', infraction_id, None, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
 
     async def log_ban(self, guild, user, mod, reason, note):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'ban', reason, note, None)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'ban', reason, note, None)
         content = format_modlog_entry(EMOJI_BAN, 'MEMBER BANNED', infraction_id, None, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
 
     async def log_forceban(self, guild, user, mod, reason, note):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'ban', reason, note, None)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'ban', reason, note, None)
         content = format_modlog_entry(EMOJI_BAN, 'USER FORCEBANNED', infraction_id, None, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
 
     async def log_unban(self, guild, user, mod, reason, note):
-        infraction_id, infraction = await self.new_infraction(guild.id, mod.id, user.id, 'unban', reason, note, None)
+        infraction_id, infraction = await self.new_infraction(guild.id, user.id, mod.id, 'unban', reason, note, None)
         content = format_modlog_entry(EMOJI_UNBAN, 'USER UNBANNED', infraction_id, None, user, mod, reason, note)
         message_id = await self.dispatch_log_message(guild, content)
         await self.set_message_id(infraction, message_id)
@@ -287,7 +287,7 @@ class Modlog(Cog):
             'created_at': infraction.created_at,
             'ends_at': infraction.ends_at,
             'active': infraction.active,
-        }
+        } if infraction else None
 
     @infraction.command()
     @server_mod()
@@ -309,7 +309,7 @@ class Modlog(Cog):
             'kick': history.kick,
             'ban': history.ban,
             'unban': history.unban,
-        }
+        } if history else None
 
     @infraction.command()
     @server_mod()

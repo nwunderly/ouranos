@@ -82,7 +82,7 @@ class IntArrayField(fields.Field, list):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def to_db_value(self, value: List[int], instance: "Union[Type[Model], Model]") -> Optional[List[int]]:
+    def to_db_value(self, value: List[int], instance: Union[Type[Model], Model]) -> Optional[List[int]]:
         return value
 
     def to_python_value(self, value: Any) -> Optional[List[int]]:
