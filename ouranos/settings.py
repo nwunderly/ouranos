@@ -15,18 +15,9 @@ class Settings:
         'jishaku',
     ]
 
-    bot_perms = {
-        'options': [
-            'admin',  # all
-            'root',  # eval, shell
-            'manager',  # manage this bot (everything but eval/shell, permissions)
-            'config',  # global config access
-            'moderator',  # global server_admin permissions
-        ],
-        204414611578028034: [  # nwunder
-            'admin'
-        ]
-    }
+    admins = [
+        204414611578028034,  # nwunder
+    ]
 
     activities = [
         f'playing version {version}!',

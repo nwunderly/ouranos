@@ -5,6 +5,7 @@ import random
 import traceback
 import signal
 import asyncio
+import json
 
 from discord.ext import commands
 from discord.ext import tasks
@@ -48,6 +49,8 @@ class Ouranos(commands.AutoShardedBot):
         self._nwunder = None
         self._running = False
         self._exit_code = 0
+        self._user_blacklist = set()
+        self._guild_blacklist = set()
         self.started_at = datetime.datetime.now()
         Ouranos.bot = self
         logger.info(f'Initialization complete.')
@@ -187,3 +190,25 @@ class Ouranos(commands.AutoShardedBot):
                                         name=name.replace("listening to ", ""))
         if activity:
             await self.change_presence(activity=activity)
+
+    def blacklisted(self, *ids):
+        for i in ids:
+            if i in self._user_blacklist or i in self._guild_blacklist:
+                return True
+        return False
+
+    def load_blacklists(self):
+        with open('/data/user_blacklist.json') as fp:
+            data = json.load(fp)
+            self._user_blacklist = set(data)
+        with open('/data/guild_blacklist.json') as fp:
+            data = json.load(fp)
+            self._guild_blacklist = set(data)
+
+    def dump_blacklists(self):
+        with open('/data/user_blacklist.json') as fp:
+            data = list(self._user_blacklist)
+            json.dump(data, fp)
+        with open('/data/guild_blacklist.json') as fp:
+            data = list(self._guild_blacklist)
+            json.dump(data, fp)

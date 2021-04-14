@@ -16,6 +16,8 @@ class Config(Model):
     prefix = fields.TextField(default=Settings.prefix)
     modlog_channel_id = fields.BigIntField(default=0)
     muted_role_id = fields.BigIntField(default=0)
+    admin_role_id = fields.BigIntField(default=0)
+    mod_role_id = fields.BigIntField(default=0)
     dm_on_infraction = fields.BooleanField(default=True)
 
     
