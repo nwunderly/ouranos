@@ -11,6 +11,13 @@ from ouranos.settings import Settings
 logger = logging.getLogger(__name__)
 
 
+async def edit_record(record, **kwargs):
+    for key, value in kwargs.items():
+        record.__setattr__(key, value)
+    await record.save()
+    return record
+
+
 class Config(Model):
     guild_id = fields.BigIntField(pk=True, generated=False)
     prefix = fields.TextField(default=Settings.prefix)
@@ -65,7 +72,7 @@ class Infraction(Model):
     note = fields.TextField(null=True)
     created_at = fields.DatetimeField()
     ends_at = fields.DatetimeField(null=True)
-    active = fields.BooleanField(default=True)
+    active = fields.BooleanField()
 
     class Meta:
         unique_together = ("guild_id", "infraction_id")
@@ -102,6 +109,7 @@ class History(Model):
     kick = IntArrayField()
     ban = IntArrayField()
     unban = IntArrayField()
+    active = IntArrayField()
 
     class Meta:
         unique_together = ("guild_id", "user_id")
