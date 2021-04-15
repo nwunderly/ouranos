@@ -34,7 +34,7 @@ class Module(commands.Converter):
             raise commands.BadArgument("A module with this name could not be found.")
 
 
-duration_pattern = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
+duration_pattern = re.compile(r"(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
 
 
 class Duration(commands.Converter):
@@ -45,11 +45,12 @@ class Duration(commands.Converter):
             raise commands.BadArgument("Invalid duration.")
 
         try:
-            print("CONVERTING TO HR MIN SEC")
-            h = int(match.group(1) or 0)
-            m = int(match.group(2) or 0)
-            s = int(match.group(3) or 0)
+            w = int(match.group(1) or 0)
+            d = int(match.group(2) or 0)
+            h = int(match.group(3) or 0)
+            m = int(match.group(4) or 0)
+            s = int(match.group(5) or 0)
         except ValueError:
             raise commands.BadArgument
 
-        return datetime.timedelta(hours=h, minutes=m, seconds=s)
+        return datetime.timedelta(weeks=w, days=d, hours=h, minutes=m, seconds=s)

@@ -210,7 +210,7 @@ class Modlog(Cog):
         if log.type in logs:
             await logs[log.type](log.guild, log.user, log.mod, log.reason, log.note, log.duration)
 
-    @commands.group(name='case', aliases=['infraction'], invoke_without_command=True)
+    @commands.group(aliases=['case'], invoke_without_command=True)
     @server_mod()
     async def infraction(self, ctx, infraction_id: int):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
