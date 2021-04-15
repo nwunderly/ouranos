@@ -41,7 +41,7 @@ class Modlog(Cog):
         config = await db.get_config(guild)
         return config and config.modlog_channel_id
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_member_ban(self, guild, user):
         if not await self.guild_has_modlog_config(guild):
             return
@@ -76,7 +76,7 @@ class Modlog(Cog):
         log = LogEvent('ban', guild, user, moderator, reason, note, None)
         self.bot.dispatch('log', log)
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_member_remove(self, member):
         guild = member.guild
         if not await self.guild_has_modlog_config(guild):
@@ -110,7 +110,7 @@ class Modlog(Cog):
             log = LogEvent('kick', guild, member, moderator, reason, note, None)
             self.bot.dispatch('log', log)
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_member_update(self, before, after):
         guild = before.guild
         if not await self.guild_has_modlog_config(guild):
@@ -166,7 +166,7 @@ class Modlog(Cog):
             log = LogEvent('mute', guild, member, moderator, reason, None, None)
             self.bot.dispatch('log', log)
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_member_unban(self, guild, user):
         if not await self.guild_has_modlog_config(guild):
             return
@@ -194,7 +194,7 @@ class Modlog(Cog):
         log = LogEvent('unban', guild, user, moderator, reason, None, None)
         self.bot.dispatch('log', log)
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_log(self, log):
         if not await self.guild_has_modlog_config(log.guild):
             return
