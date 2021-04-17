@@ -53,6 +53,19 @@ class Ouranos(commands.AutoShardedBot):
         Ouranos.bot = self
         logger.info(f'Initialization complete.')
 
+    async def run_safely(self, coro):
+        try:
+            await coro
+        except Exception as e:
+            return e
+
+    async def run_in_background(self, coro):
+        async def _task():
+            e = await self.run_safely(coro)
+            if e:
+                logger.exception(f"Error in background task:")
+        self.loop.create_task(_task())
+
     def run(self):
         """Custom run method, automatically inserts token given on initialization."""
         super().run(self.__token)
@@ -143,6 +156,12 @@ class Ouranos(commands.AutoShardedBot):
 
     async def process_mention(self, message):
         if message.content in [self.user.mention, '<@!%s>' % self.user.id]:
+            if not message.guild.me.guild_permissions.send_messages:
+                try:
+                    await message.author.send("I don't have permission to send messages in that channel!")
+                except discord.Forbidden:
+                    return
+                pass
             p = await self.prefix(message)
             e = discord.Embed(title=f"Ouranos v{Settings.version}",
                               color=Settings.embed_color,
@@ -202,3 +221,22 @@ class Ouranos(commands.AutoShardedBot):
         with open('./data/id_blacklist.json', 'w') as fp:
             data = list(self._blacklist)
             json.dump(data, fp)
+
+    async def get_or_fetch_member(self, guild, member_id):
+        member = guild.get_member(member_id)
+        if member is not None:
+            return member
+
+        shard = self.get_shard(guild.shard_id)
+        if shard.is_ws_ratelimited():
+            try:
+                member = await guild.fetch_member(member_id)
+            except discord.HTTPException:
+                return None
+            else:
+                return member
+
+        members = await guild.query_members(limit=1, user_ids=[member_id], cache=True)
+        if not members:
+            return None
+        return members[0]

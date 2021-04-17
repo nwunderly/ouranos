@@ -19,6 +19,20 @@ history_cache = {}
 last_case_id_cache = {}
 
 
+class LogEvent:
+    def __init__(self, type, guild, user, mod, reason, note, duration):
+        self.type = type
+        self.guild = guild
+        self.user = user
+        self.mod = mod
+        self.reason = reason
+        self.note = note
+        self.duration = duration
+
+    async def dispatch(self):
+        Ouranos.bot.dispatch('log', self)
+
+
 async def get_case_id(guild_id):
     if guild_id in last_case_id_cache:
         misc = last_case_id_cache[guild_id]
@@ -125,12 +139,15 @@ async def deactivate_infractions(guild_id, user_id, type):
     if not history:
         return
     active = list(history.active)
+    count = 0
     for infraction_id in history.active:
         infraction = await get_infraction(guild_id, infraction_id)
         if infraction.type == type:
             active.remove(infraction_id)
             await db.edit_record(history, active=active)
             await db.edit_record(infraction, active=False)
+            count += 1
+    return count
 
 
 async def log_warn(guild, user, mod, reason, note, _):

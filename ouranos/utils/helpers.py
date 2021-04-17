@@ -51,3 +51,19 @@ def approximate_timedelta(dt):
         delta = f"{dt.seconds} seconds"
 
     return delta
+
+
+def exact_timedelta(dt):
+    t = []
+    if dt.days >= 7:
+        t.append(f"{(_w := dt.days // 7)} week" + ('s' if _w > 1 else ''))
+    elif dt.days >= 1:
+        t.append(f"{(_d := dt.days)} day" + ('s' if _d > 1 else ''))
+    elif dt.seconds > 3599:
+        t.append(f"{(_h := dt.seconds // 3600)} hour" + ('s' if _h > 1 else ''))
+    elif dt.seconds > 59:
+        t.append(f"{(_m := dt.seconds // 60)} minute" + ('s' if _m > 1 else ''))
+    else:
+        t.append(f"{dt.seconds} seconds")
+
+    return ", ".join(t)
