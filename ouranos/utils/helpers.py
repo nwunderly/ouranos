@@ -39,31 +39,54 @@ def setup_logger(name, level):
 
 
 def approximate_timedelta(dt):
-    if dt.days >= 7:
-        delta = f"{(_w := dt.days // 7)} week" + ('s' if _w > 1 else '')
-    elif dt.days >= 1:
-        delta = f"{(_d := dt.days)} day" + ('s' if _d > 1 else '')
-    elif dt.seconds > 3599:
-        delta = f"{(_h := dt.seconds // 3600)} hour" + ('s' if _h > 1 else '')
-    elif dt.seconds > 59:
-        delta = f"{(_m := dt.seconds // 60)} minute" + ('s' if _m > 1 else '')
+    if isinstance(dt, datetime.timedelta):
+        dt = dt.total_seconds()
+    s = lambda n: 's' if n != 1 else ''
+    if dt >= WEEK:
+        t = f"{(_w := dt // WEEK)} week" + s(_w)
+        dt -= _w*WEEK
+    elif dt >= DAY:
+        t = f"{(_d := dt // DAY)} day" + s(_d)
+        dt -= _d*DAY
+    elif dt >= HOUR:
+        t = f"{(_h := dt // HOUR)} hour" + s(_h)
+        dt -= _h*HOUR
+    elif dt >= MINUTE:
+        t = f"{(_m := dt // MINUTE)} minute" + s(_m)
+        dt -= _m*MINUTE
     else:
-        delta = f"{dt.seconds} seconds"
+        t = f"{(_s := dt // SECOND)} second" + s(_s)
+        dt -= _s*SECOND
 
-    return delta
+    return t
+
+
+SECOND = 1
+MINUTE = SECOND*60
+HOUR = MINUTE*60
+DAY = HOUR*24
+WEEK = DAY*7
 
 
 def exact_timedelta(dt):
+    if isinstance(dt, datetime.timedelta):
+        dt = dt.total_seconds()
     t = []
-    if dt.days >= 7:
-        t.append(f"{(_w := dt.days // 7)} week" + ('s' if _w > 1 else ''))
-    elif dt.days >= 1:
-        t.append(f"{(_d := dt.days)} day" + ('s' if _d > 1 else ''))
-    elif dt.seconds > 3599:
-        t.append(f"{(_h := dt.seconds // 3600)} hour" + ('s' if _h > 1 else ''))
-    elif dt.seconds > 59:
-        t.append(f"{(_m := dt.seconds // 60)} minute" + ('s' if _m > 1 else ''))
-    else:
-        t.append(f"{dt.seconds} seconds")
+    s = lambda n: 's' if n > 1 else ''
+    if dt >= WEEK:
+        t.append(f"{(_w := dt // WEEK)} week" + s(_w))
+        dt -= _w*WEEK
+    if dt >= DAY:
+        t.append(f"{(_d := dt // DAY)} day" + s(_d))
+        dt -= _d*DAY
+    if dt >= HOUR:
+        t.append(f"{(_h := dt // HOUR)} hour" + s(_h))
+        dt -= _h*HOUR
+    if dt >= MINUTE:
+        t.append(f"{(_m := dt // MINUTE)} minute" + s(_m))
+        dt -= _m*MINUTE
+    if dt >= SECOND:
+        t.append(f"{(_s := dt // SECOND)} second" + s(_s))
+        dt -= _s*SECOND
 
     return ", ".join(t)

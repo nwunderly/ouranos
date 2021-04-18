@@ -61,7 +61,7 @@ async def update_config(*, guild=None, config=None, **kwargs):
 
 
 class Infraction(Model):
-    id = fields.IntField(pk=True, generated=True)
+    global_id = fields.IntField(pk=True, generated=True)
     guild_id = fields.BigIntField()
     infraction_id = fields.IntField()
     user_id = fields.BigIntField()
@@ -70,8 +70,8 @@ class Infraction(Model):
     type = fields.TextField()
     reason = fields.TextField(null=True)
     note = fields.TextField(null=True)
-    created_at = fields.DatetimeField()
-    ends_at = fields.DatetimeField(null=True)
+    created_at = fields.BigIntField()
+    ends_at = fields.BigIntField(null=True)
     active = fields.BooleanField()
 
     class Meta:
@@ -100,7 +100,7 @@ class IntArrayField(fields.Field, list):
 
 
 class History(Model):
-    id = fields.IntField(pk=True, generated=True)
+    global_id = fields.IntField(pk=True, generated=True)
     guild_id = fields.BigIntField()
     user_id = fields.BigIntField()
     warn = IntArrayField()
@@ -119,6 +119,6 @@ async def init(db_url):
     logger.info("Connecting to database.")
     await Tortoise.init(
         db_url=db_url,
-        modules={'models': ['ouranos.utils.db']}
+        modules={'models': ['ouranos.utils.database']}
     )
     await Tortoise.generate_schemas()

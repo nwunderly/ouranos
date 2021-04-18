@@ -5,7 +5,7 @@ from discord.ext import commands
 from typing import Union
 
 from ouranos.cog import Cog
-from ouranos.utils import db
+from ouranos.utils import database as db
 from ouranos.utils.checks import is_bot_admin, server_admin
 from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
 

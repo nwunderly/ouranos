@@ -3,7 +3,8 @@ import logging
 from discord.ext import commands
 
 from ouranos.cog import Cog
-from ouranos.utils import db
+from ouranos.utils import database as db
+from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,11 @@ class Admin(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.group(name='db')
+    @commands.group(name='db', invoke_without_command=True)
     @bot_admin()
     async def _db(self, ctx):
         """Database admin actions."""
-        pass
+        await ctx.send_help(self._db)
 
     @_db.command(aliases=['clear-config'])
     @bot_admin()
@@ -61,10 +62,13 @@ class Admin(Cog):
         try:
             misc = await db.MiscData.get_or_none(guild_id=guild_id)
             if misc:
+                if guild_id in modlog.last_case_id_cache:
+                    modlog.last_case_id_cache.pop(guild_id)
                 misc.last_case_id = 0
-                result_3 = await misc.save()
+                await misc.save()
+                result_3 = True
             else:
-                result_3 = None
+                result_3 = False
         except Exception as e:
             result_3 = f"{e.__class__.__name__}: {e}"
 

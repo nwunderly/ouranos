@@ -1,20 +1,21 @@
+import asyncio
 import logging
-import re
+import time
 
 import discord
 from discord.ext import commands
 from discord.ext import tasks
-from typing import Optional
+from typing import Optional, Union
 
 from ouranos.cog import Cog
 from ouranos.utils import checks
-from ouranos.utils import db
+from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
-from ouranos.utils.modlog_utils import LogEvent
-from ouranos.utils.constants import TICK_RED, TICK_GREEN, TICK_YELLOW
-from ouranos.utils.constants import OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP
-from ouranos.utils.converters import Duration
+from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
+from ouranos.utils.constants import TICK_RED, TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP
+from ouranos.utils.converters import Duration, Reason, RequiredReason, UserID, MutedUser, BannedUser
 from ouranos.utils.helpers import exact_timedelta
+from ouranos.utils.errors import ModerationError, UserNotInGuild, NotConfigured, BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
 
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,10 @@ def format_alert_dm(guild, user, infraction_type, duration=None, reason=None, au
     return msg
 
 
+def notified(delivered):
+    return f"*User was {'' if delivered else 'not '}notified.*" if delivered is not None else ""
+
+
 async def try_send(user, message):
     try:
         await user.send(message)
@@ -49,188 +54,68 @@ async def try_send(user, message):
         return False
 
 
-class ModerationError(commands.CommandError):
-    def __init__(self, message):
-        self._msg = message
-        super().__init__(message)
-
-
-class UserNotInGuild(ModerationError):
-    def __init__(self, user):
-        super().__init__(f"User **{user}** is not in this guild.")
-
-
-class NotConfigured(ModerationError):
-    def __init__(self, option):
-        super().__init__(f"This guild is missing the **{option}** configuration option.")
-
-
-class BotMissingPermission(ModerationError):
-    def __init__(self, permission):
-        super().__init__(f"I could not perform that action because I'm missing the **{permission}** permission.")
-
-
-class BotRoleHierarchyError(ModerationError):
-    def __init__(self):
-        super().__init__("I could not execute that action due to role hierarchy.")
-
-
-class ModActionOnMod(ModerationError):
-    def __init__(self):
-        super().__init__("You cannot perform moderation actions on other server moderators!")
-
-
-class UserID(commands.Converter):
-    async def convert(self, ctx, argument):
-        try:
-            m = await commands.MemberConverter().convert(ctx, argument)
-        except commands.BadArgument:
-            try:
-                member_id = int(argument, base=10)
-            except ValueError:
-                raise commands.BadArgument(f"{argument} is not a valid user or user ID.") from None
-            else:
-                m = await ctx.bot.get_or_fetch_member(ctx.guild, member_id)
-                if m is None:
-                    # hackban case
-                    return type('_Hackban', (), {'id': member_id, '__str__': lambda s: f'User ID {s.id}'})()
-        return m
-
-
-class BannedUser(commands.Converter):
-    async def _from_bans(self, ctx, argument):
-        if not ctx.guild.me.guild_permissions.ban_members:
-            raise BotMissingPermission("Ban Members")
-        if argument.isdigit():
-            member_id = int(argument, base=10)
-            try:
-                return await ctx.guild.fetch_ban(discord.Object(id=member_id)), True
-            except discord.NotFound:
-                raise commands.BadArgument('This user is not banned.') from None
-
-        ban_list = await ctx.guild.bans()
-        entity = discord.utils.find(lambda u: str(u.user) == argument, ban_list)
-        if entity is None:
-            raise commands.BadArgument('This user is not banned.')
-        return entity, True
-
-    async def _from_db(self, ctx, argument):
-        try:
-            member_id = int(argument, base=10)
-        except ValueError:
-            return None
-        history = await modlog.get_history(ctx.guild.id, member_id)
-        if history and history.active:
-            for i in history.active:
-                if i in history.ban:
-                    return discord.Object(id=member_id)
-        return None
-
-    async def convert(self, ctx, argument):
-        try:
-            return await self._from_bans(ctx, argument)
-        except commands.BadArgument as _e:
-            e = _e
-        m = await self._from_db(ctx, argument)
-        if m:
-            return m, False
-        else:
-            raise e
-
-
-class MutedUser(commands.Converter):
-    async def _from_guild(self, ctx, member):
-        config = await db.get_config(ctx.guild)
-        if config and config.mute_role_id:
-            role = ctx.guild.get_role(config.mute_role_id)
-            if role in member.roles:
-                return member, True
-            else:
-                raise commands.BadArgument('This user is not muted.')
-        else:
-            raise NotConfigured('mute_role')
-
-    async def _from_db(self, ctx, member_id):
-        if not isinstance(member_id, int):
-            try:
-                member_id = int(member_id, base=10)
-            except ValueError:
-                return None
-        history = await modlog.get_history(ctx.guild.id, member_id)
-        if history and history.active:
-            for i in history.active:
-                if i in history.mute:
-                    return discord.Object(id=member_id)
-        return None
-
-    async def convert(self, ctx, argument):
-        member = None
-        try:
-            member = await commands.MemberConverter().convert(ctx, argument)
-            return await self._from_guild(ctx, member)
-        except commands.BadArgument as _e:
-            e = _e
-        obj = await self._from_db(ctx, member.id if member else argument)
-        if obj:
-            return obj, False
-        else:
-            raise e
-
-
-class Reason(commands.Converter):
-    pattern = re.compile(r"^(?:([\w ]*\w) *)?(?:--note|-n) +(.+)")
-
-    async def convert(self, ctx, argument):
-        match = Reason.pattern.fullmatch(argument)
-        if not match or match.group(0) == '':
-            reason, note = argument, None
-        else:
-            reason, note = match.group(1) or None, match.group(2)
-
-        r = Reason.format_reason(ctx, reason, note)
-        if len(r) > 512:
-            reason_max = 512 - len(r) + len(argument)
-            raise commands.BadArgument(f'Reason is too long ({len(argument)}/{reason_max})')
-
-        return reason, note, r
-
-    @classmethod
-    def format_reason(cls, ctx, reason=None, note=None):
-        return f'{ctx.author} (id: {ctx.author.id}): {reason} (note: {note})'
-
-
-async def send_error(ctx, error):
-    message = f"{TICK_RED} {error}"
-    await ctx.send(message)
-
-
 class Moderation(Cog):
     """Moderation commands."""
     def __init__(self, bot):
         self.bot = bot
         self.check_timers.start()
+        self.handling = set()
 
     def cog_unload(self):
         self.check_timers.stop()
 
-    async def cog_command_error(self, ctx, error):
-        logger.exception("moderation cog command error")
-        if isinstance(error, commands.BadArgument):
-            await send_error(ctx, error)
-        elif isinstance(error, ModerationError):
-            await send_error(ctx, error)
-        elif isinstance(error, discord.Forbidden):
-            await send_error(ctx, 'I do not have permission to execute this action.')
-        elif isinstance(error, commands.CommandInvokeError):
-            original = error.original
-            if isinstance(original, discord.Forbidden):
-                await send_error(ctx, 'I do not have permission to execute this action.')
-            elif isinstance(original, discord.HTTPException):
-                await ctx.send(f'An unexpected error occurred:```\n{error.__class__.__name__}: {error}\n```')
+    @tasks.loop(seconds=10)
+    async def check_timers(self):
+        await self.bot.wait_until_ready()
+        t0 = time.monotonic()
+
+        async def _lift_infraction(s, cb, g, u, i):
+            await asyncio.sleep(s)
+            await cb(g, u, i)
+            self.handling.remove(i.infraction_id)
+
+        types = {
+            'mute': self._do_auto_unmute,
+            'ban': self._do_auto_unban
+        }
+        now = time.time()
+        limit = now + 30
+        n = 0
+
+        for infraction in await db.Infraction.filter(active=True, ends_at__lt=limit):
+            guild = self.bot.get_guild(infraction.guild_id)
+            if infraction.type in types and infraction.infraction_id not in self.handling and guild:
+                self.handling.add(infraction.infraction_id)
+                callback = types[infraction.type]
+                sleep = infraction.ends_at - now
+                n += 1
+                await self.bot.run_in_background(_lift_infraction(sleep, callback, guild, infraction.user_id, infraction))
+
+        dt = time.monotonic() - t0
+        # logger.debug(f"Completed expired infraction check in {dt} seconds, queued {n} tasks")
+
+    @Cog.listener()
+    async def on_member_join(self, member):
+        config = await db.get_config(member.guild)
+        if not (config and config.mute_role_id):
+            return
+        history = await modlog.get_history(member.guild.id, member)
+        if history and history.active:
+            for i in history.active:
+                if i in history.mute:
+                    infraction = await modlog.get_infraction(member.guild.id, i)
+                    return await self._do_auto_mute(member.guild, member, infraction)
 
     async def _do_warn(self, guild, user, mod, reason, note=None):
         """Applies a warn to a user and dispatches the event to the modlog."""
         config = await db.get_config(guild)
+        member = await self.bot.get_or_fetch_member(guild, user.id)
+
+        # some checks to make sure we can actually do this
+        if not member:
+            raise UserNotInGuild(user)
+        if await checks.is_server_mod(member):
+            raise ModActionOnMod
 
         if (not config) or config.dm_on_infraction:
             message = format_alert_dm(guild, user, 'warn', reason=reason)
@@ -275,9 +160,22 @@ class Moderation(Cog):
         await LogEvent('mute', guild, user, mod, reason, note, duration).dispatch()
         return delivered
 
-    async def _do_mute_duration_edit(self, infraction, new_duration):
+    async def _do_mute_duration_edit(self, guild, user, new_duration, edited_by):
         """Edits the duration of an existing mute infraction."""
-        await modlog.edit_infraction_and_message(infraction, duration=new_duration)
+        history = await modlog.get_history(guild.id, user.id)
+        if not history:
+            raise UnexpectedError("Attempted to edit the mute duration of a user with empty history.")
+
+        infraction = None
+        for i in reversed(history.active):
+            if i in history.mute:
+                infraction = await modlog.get_infraction(guild.id, i)
+                break
+
+        if not infraction:
+            raise UnexpectedError("Attempted to edit the mute duration of a user with no active mute infractions.")
+
+        await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
 
     async def _do_unmute(self, guild, user, mod, reason, note, audit_reason):
         """Lifts a user's mute and dispatches the event to the modlog."""
@@ -378,6 +276,23 @@ class Moderation(Cog):
         await LogEvent(type, guild, user, mod, reason, note, duration).dispatch()
         return delivered, not bool(member)
 
+    async def _do_ban_duration_edit(self, guild, user, new_duration, edited_by):
+        """Edits the duration of an existing ban infraction."""
+        history = await modlog.get_history(guild.id, user.id)
+        if not history:
+            raise UnexpectedError("Attempted to edit the ban duration of a user with empty history.")
+
+        infraction = None
+        for i in reversed(history.active):
+            if i in history.ban:
+                infraction = await modlog.get_infraction(guild.id, i)
+                break
+
+        if not infraction:
+            raise UnexpectedError("Attempted to edit the ban duration of a user with no active ban infractions.")
+
+        await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
+
     async def _do_unban(self, guild, user, mod, reason, note, audit_reason):
         """Removes a ban from a user and dispatches the event to the modlog."""
         # check to make sure we can actually do this
@@ -394,41 +309,94 @@ class Moderation(Cog):
         # dispatch the modlog event and return to the command
         await LogEvent('unban', guild, user, mod, reason, note, None).dispatch()
 
-    async def _do_auto_mute(self, guild, user):
+    async def _do_auto_mute(self, guild, user, infraction):
         """Applies a mute to a user without dispatching the modlog event.
         Used for reassigning mute role when a user rejoins the server before their mute expires.
         """
-        pass
+        config = await db.get_config(guild)
+        member = await self.bot.get_or_fetch_member(guild, user.id)
+        role = guild.get_role(config.mute_role_id if config else 0)
+        infraction_id = infraction.infraction_id
 
-    async def _do_auto_unmute(self, guild, user):
+        # make sure we can actually do this
+        can_mute = bool(member) \
+            and bool(role) \
+            and guild.me.guild_permissions.manage_roles \
+            and guild.me.top_role > role
+
+        if can_mute:
+            # add the role
+            await member.add_roles(role, reason=f'Active mute (#{infraction_id})')
+
+            # dispatch the modlog event
+            await SmallLogEvent('mute-persist', guild, user, infraction_id).dispatch()
+
+        return can_mute
+
+
+    async def _do_auto_unmute(self, guild, user_id, infraction):
         """Removes a mute from a user without dispatching the modlog event.
         Used for handling expired mutes without creating an infraction.
         """
+        config = await db.get_config(guild)
+        member = await self.bot.get_or_fetch_member(guild, user_id)
+        role = guild.get_role(config.mute_role_id if config else 0)
+        infraction_id = infraction.infraction_id
 
-    async def _do_auto_unban(self, guild, user):
+        # make sure we can actually do this
+        can_unmute = bool(member) \
+            and bool(role) \
+            and guild.me.guild_permissions.manage_roles \
+            and guild.me.top_role > role
+
+        if can_unmute:
+            # remove the role
+            await member.remove_roles(role, reason=f'Mute expired (#{infraction_id})')
+
+            # dispatch the modlog event
+            await SmallLogEvent('mute-expire', guild, member, infraction_id).dispatch()
+
+        # even if we don't have any permissions, mark any mutes for this user as inactive
+        # so we don't keep trying to unmute.
+        await self.bot.run_in_background(
+            modlog.deactivate_infractions(guild.id, user_id, 'mute'))
+
+        return can_unmute
+
+    async def _do_auto_unban(self, guild, user_id, infraction):
         """Applies a mute role to a user without dispatching the modlog event.
         Used for handling expired mutes without creating an infraction.
         """
+        infraction_id = infraction.infraction_id
 
-    @tasks.loop(seconds=10)
-    async def check_timers(self):
-        pass
+        # make sure we can actually do this
+        can_unban = guild.me.guild_permissions.ban_members
 
-    @Cog.listener()
-    async def on_member_join(self, member):
-        pass
+        if can_unban:
+            # remove the role
+            ban = await guild.fetch_ban(discord.Object(user_id))
+            await guild.unban(ban.user, reason=f'Ban expired (#{infraction_id})')
+
+            # dispatch the modlog event
+            await SmallLogEvent('ban-expire', guild, ban.user, infraction_id).dispatch()
+
+        # even if we don't have any permissions, mark any bans for this user as inactive
+        # so we don't keep trying to unban.
+        await self.bot.run_in_background(
+            modlog.deactivate_infractions(guild.id, ban.user.id, 'ban'))
+
+        return can_unban
 
     @commands.command()
     @checks.server_mod()
-    async def warn(self, ctx, user: discord.Member, *, reason: Reason = None):
+    async def warn(self, ctx, user: discord.Member, *, reason: RequiredReason):
         """Applies a warning to a user.
 
         Sends the user a DM and logs this action to the guild's modlog if configured to do so.
         """
         reason, note, _ = reason or (None, None, None)
         delivered = await self._do_warn(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note)
-        delivered = f"*User was {'' if delivered else 'not '}notified.*" if delivered is not None else ""
-        await ctx.send(f"{THUMBS_UP} warned **{user}**. {delivered}")
+        await ctx.send(f"{THUMBS_UP} Warned **{user}**. {notified(delivered)}")
 
     @commands.command()
     @checks.server_mod()
@@ -439,10 +407,22 @@ class Moderation(Cog):
         """
         reason, note, audit_reason = reason or (None, None, None)
         audit_reason = audit_reason or Reason.format_reason(ctx)
-        delivered = await self._do_mute(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
-        delivered = f"*User was {'' if delivered else 'not '}notified.*" if delivered is not None else ""
         dt = exact_timedelta(duration) if duration else "permanent"
-        await ctx.send(f"{OK_HAND} muted **{user}** ({dt}). {delivered}")
+
+        try:
+            muted_user, has_role = await MutedUser().convert(ctx, str(user.id))
+        except commands.BadArgument:
+            muted_user, has_role = None, None
+
+        # if already muted, edit the duration
+        if muted_user and has_role:
+            await self._do_mute_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+            await ctx.send(f"{TICK_YELLOW} User is already muted, changed duration instead ({dt}).")
+
+        # otherwise, mute the user like normal
+        else:
+            delivered = await self._do_mute(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
+            await ctx.send(f"{OK_HAND} Muted **{user}** ({dt}). {notified(delivered)}")
 
     @commands.command()
     @checks.server_mod()
@@ -458,16 +438,16 @@ class Moderation(Cog):
         # actually unmute them
         if has_role:
             delivered = await self._do_unmute(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
-            delivered = f"User was {'' if delivered else 'not '}notified." if delivered is not None else ""
-            await ctx.send(f"{PRAY} unmuted **{user}**. *{delivered}*")
+            await ctx.send(f"{PRAY} Unmuted **{user}**. {notified(delivered)}")
 
         # remove infraction from database if one was found but they're not muted.
         else:
             count = await modlog.deactivate_infractions(ctx.guild.id, user.id, 'mute')
             p = await self.bot.prefix(ctx.message)
-            await ctx.send(f"{TICK_YELLOW} This user does not seem to have this server's mute role, "
-                           f"but I found {count} active mute infraction(s) in my database.\n"
-                           f"I marked these infractions as inactive to account for this discrepancy. "
+            _s, _these = ('s', 'these') if count > 1 else ('', 'this')
+            await ctx.send(f"{TICK_YELLOW} This user does not seem to have this guild's mute role, "
+                           f"but I found {count} active mute infraction{_s} in my database.\n"
+                           f"I marked {_these} infraction{_s} as inactive to account for this discrepancy. "
                            f"`{p}history {user.id}` should now show no active mutes.")
 
     @commands.command()
@@ -480,8 +460,7 @@ class Moderation(Cog):
         reason, note, audit_reason = reason or (None, None, None)
         audit_reason = audit_reason or Reason.format_reason(ctx)
         delivered = await self._do_kick(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
-        delivered = f"*User was {'' if delivered else 'not '}notified.*" if delivered is not None else ""
-        await ctx.send(f"{CLAP} kicked **{user}**. {delivered}")
+        await ctx.send(f"{CLAP} Kicked **{user}**. {notified(delivered)}")
 
     @commands.command()
     @checks.server_mod()
@@ -494,11 +473,22 @@ class Moderation(Cog):
         """
         reason, note, audit_reason = reason or (None, None, None)
         audit_reason = audit_reason or Reason.format_reason(ctx)
-        delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
-        delivered = f"*User was {'' if delivered else 'not '}notified.*" if delivered is not None else ""
-        force = 'force' if force else ''
         dt = exact_timedelta(duration) if duration else "permanent"
-        await ctx.send(f"{HAMMER} {force}banned **{user}** ({dt}). {delivered}")
+
+        try:
+            banned_user, banned_in_guild = await BannedUser().convert(ctx, str(user.id))
+        except commands.BadArgument:
+            banned_user, banned_in_guild = None, None
+
+        # if already banned, edit the duration
+        if banned_user and banned_in_guild:
+            await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+            await ctx.send(f"{TICK_YELLOW} User is already banned, changed duration instead ({dt}).")
+
+        else:
+            delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
+            banned = 'Forcebanned' if force else 'Banned'
+            await ctx.send(f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}")
 
     @commands.command()
     @checks.server_mod()
@@ -507,23 +497,24 @@ class Moderation(Cog):
 
         Sends the user a DM and logs this action to the guild's modlog if configured to do so.
         """
-        user, banned_in_guild = user
-        user = user.user
+        ban, banned_in_guild = user
+        user = ban.user
         reason, note, audit_reason = reason or (None, None, None)
         audit_reason = audit_reason or Reason.format_reason(ctx)
 
         # actually unban them
         if banned_in_guild:
             await self._do_unban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
-            await ctx.send(f"{PRAY} unbanned **{user}**.")
+            await ctx.send(f"{PRAY} Unbanned **{user}**.")
 
         # remove infraction from database if one was found but they're not banned.
         else:
             count = await modlog.deactivate_infractions(ctx.guild.id, user.id, 'ban')
             p = await self.bot.prefix(ctx.message)
-            await ctx.send(f"{TICK_YELLOW} This user does not seem to be in this server's ban list, "
-                           f"but I found {count} active ban infraction(s) in my database.\n"
-                           f"I marked these infractions as inactive to account for this discrepancy. "
+            _s, _these = ('s', 'these') if count > 1 else ('', 'this')
+            await ctx.send(f"{TICK_YELLOW} This user does not seem to be in this guild's ban list, "
+                           f"but I found {count} active ban infraction{_s} in my database.\n"
+                           f"I marked {_these} infraction{_s} as inactive to account for this discrepancy. "
                            f"`{p}history {user.id}` should now show no active bans.")
 
     async def _do_removal(self):

@@ -9,9 +9,9 @@ from typing import Union
 from discord.ext import commands
 
 from ouranos.cog import Cog
-from ouranos.utils import db
+from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
-from ouranos.utils.modlog_utils import LogEvent
+from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
 from ouranos.utils.checks import server_mod, server_admin
 from ouranos.utils.constants import TICK_RED
 from ouranos.utils.converters import FetchedUser
@@ -28,6 +28,13 @@ LOGS = {
     'ban': modlog.log_ban,
     'forceban': modlog.log_forceban,
     'unban': modlog.log_unban,
+}
+
+
+SMALL_LOGS = {
+    'mute-expire': modlog.log_mute_expire,
+    'ban-expire': modlog.log_ban_expire,
+    'mute-persist': modlog.log_mute_persist,
 }
 
 
@@ -65,6 +72,10 @@ class Modlog(Cog):
 
         if moderator == self.bot.user:  # action was done by me
             return
+
+        # disable currently-active ban(s) for this user in this guild, if there are any
+        await self.bot.run_in_background(
+            modlog.deactivate_infractions(guild.id, user.id, 'ban'))
 
         # TODO: fix this
         # if isinstance(user, discord.User):  # forceban
@@ -142,7 +153,8 @@ class Modlog(Cog):
                 return
 
             # disable currently-active mute(s) for this user in this guild, if there are any
-            await modlog.deactivate_infractions(guild.id, member.id, 'mute')
+            await self.bot.run_in_background(
+                modlog.deactivate_infractions(guild.id, member.id, 'mute'))
 
             await LogEvent('unmute', guild, member, moderator, reason, None, None).dispatch()
 
@@ -160,6 +172,10 @@ class Modlog(Cog):
 
             if moderator == self.bot.user:  # action was done by me
                 return
+
+            # disable currently-active mute(s) for this user in this guild, if there are any
+            await self.bot.run_in_background(
+                modlog.deactivate_infractions(guild.id, member.id, 'mute'))
 
             await LogEvent('mute', guild, member, moderator, reason, None, None).dispatch()
 
@@ -185,7 +201,8 @@ class Modlog(Cog):
             return
 
         # disable currently-active ban(s) for this user in this guild, if there are any
-        await modlog.deactivate_infractions(guild.id, user.id, 'ban')
+        await self.bot.run_in_background(
+            modlog.deactivate_infractions(guild.id, user.id, 'ban'))
 
         # dispatch the event
         await LogEvent('unban', guild, user, moderator, reason, None, None).dispatch()
@@ -194,8 +211,15 @@ class Modlog(Cog):
     async def on_log(self, log):
         if not await self.guild_has_modlog_config(log.guild):
             return
-        if log.type in LOGS:
+        if isinstance(log, LogEvent):
             await LOGS[log.type](log.guild, log.user, log.mod, log.reason, log.note, log.duration)
+
+    @Cog.listener()
+    async def on_small_log(self, log):
+        if not await self.guild_has_modlog_config(log.guild):
+            return
+        if isinstance(log, SmallLogEvent):
+            await SMALL_LOGS[log.type](log.guild, log.user, log.infraction_id)
 
     @commands.group(aliases=['case'], invoke_without_command=True)
     @server_mod()
@@ -248,6 +272,7 @@ class Modlog(Cog):
             'note': infraction.note,
             'created_at': str(infraction.created_at) if infraction.created_at else None,
             'ends_at': str(infraction.ends_at) if infraction.ends_at else None,
+            'active': infraction.active
         } if infraction else None
 
     @infraction.command()
@@ -302,7 +327,7 @@ class Modlog(Cog):
             'kick': history.kick,
             'ban': history.ban,
             'unban': history.unban,
-            'active': history.active,
+            'active': history.active
         } if history else None
 
     @commands.group(invoke_without_command=True)

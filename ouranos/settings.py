@@ -30,7 +30,10 @@ class Settings:
     ]
 
     activities = [
-        f'playing version {version}!',
+        'playing version {version}',
+        'watching {random_guild_name}',
+        'watching {user_count} users',
+        'watching {guild_count} guilds',
     ]
 
     intents = discord.Intents(
@@ -49,4 +52,11 @@ class Settings:
         dm_reactions=False,
         guild_typing=False,
         dm_typing=False
+    )
+
+    allowed_mentions = discord.AllowedMentions(
+        everyone=False,
+        users=True,
+        roles=False,
+        replied_user=True
     )
