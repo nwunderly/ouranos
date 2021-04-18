@@ -92,14 +92,15 @@ class Moderation(Cog):
                 await self.bot.run_in_background(_lift_infraction(sleep, callback, guild, infraction.user_id, infraction))
 
         dt = time.monotonic() - t0
-        # logger.debug(f"Completed expired infraction check in {dt} seconds, queued {n} tasks")
+        if n:
+            logger.info(f"Completed expired infraction check in {dt} seconds, queued {n} tasks")
 
     @Cog.listener()
     async def on_member_join(self, member):
         config = await db.get_config(member.guild)
         if not (config and config.mute_role_id):
             return
-        history = await modlog.get_history(member.guild.id, member)
+        history = await modlog.get_history(member.guild.id, member.id)
         if history and history.active:
             for i in history.active:
                 if i in history.mute:
@@ -176,6 +177,7 @@ class Moderation(Cog):
             raise UnexpectedError("Attempted to edit the mute duration of a user with no active mute infractions.")
 
         await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
+        return infraction.infraction_id
 
     async def _do_unmute(self, guild, user, mod, reason, note, audit_reason):
         """Lifts a user's mute and dispatches the event to the modlog."""
@@ -292,6 +294,7 @@ class Moderation(Cog):
             raise UnexpectedError("Attempted to edit the ban duration of a user with no active ban infractions.")
 
         await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
+        return infraction.infraction_id
 
     async def _do_unban(self, guild, user, mod, reason, note, audit_reason):
         """Removes a ban from a user and dispatches the event to the modlog."""
@@ -416,8 +419,8 @@ class Moderation(Cog):
 
         # if already muted, edit the duration
         if muted_user and has_role:
-            await self._do_mute_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
-            await ctx.send(f"{TICK_YELLOW} User is already muted, changed duration instead ({dt}).")
+            i = await self._do_mute_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+            await ctx.send(f"{TICK_YELLOW} User is already muted (#{i}), changed duration instead ({dt}).")
 
         # otherwise, mute the user like normal
         else:
@@ -482,8 +485,8 @@ class Moderation(Cog):
 
         # if already banned, edit the duration
         if banned_user and banned_in_guild:
-            await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
-            await ctx.send(f"{TICK_YELLOW} User is already banned, changed duration instead ({dt}).")
+            i = await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+            await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
 
         else:
             delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)

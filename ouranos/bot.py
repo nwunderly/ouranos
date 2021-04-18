@@ -181,7 +181,7 @@ class Ouranos(commands.AutoShardedBot):
 
     async def _respond_to_error(self, ctx, error):
         if isinstance(error, commands.UserInputError):
-            await ctx.send(f"{TICK_RED} {error}")
+            await ctx.send(f"{TICK_RED} {str(error).capitalize()}")
         elif isinstance(error, ModerationError):
             await ctx.send(f"{TICK_RED} {error}")
         elif isinstance(error, discord.Forbidden):
