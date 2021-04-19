@@ -44,19 +44,14 @@ def approximate_timedelta(dt):
     s = lambda n: 's' if n != 1 else ''
     if dt >= WEEK:
         t = f"{(_w := dt // WEEK)} week" + s(_w)
-        dt -= _w*WEEK
     elif dt >= DAY:
         t = f"{(_d := dt // DAY)} day" + s(_d)
-        dt -= _d*DAY
     elif dt >= HOUR:
         t = f"{(_h := dt // HOUR)} hour" + s(_h)
-        dt -= _h*HOUR
     elif dt >= MINUTE:
         t = f"{(_m := dt // MINUTE)} minute" + s(_m)
-        dt -= _m*MINUTE
     else:
         t = f"{(_s := dt // SECOND)} second" + s(_s)
-        dt -= _s*SECOND
 
     return t
 

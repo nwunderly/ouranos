@@ -124,9 +124,10 @@ def format_small_log_message(emoji, title, user, infraction_id):
 
 async def new_log_message(guild, content):
     config = await db.get_config(guild)
-    channel = guild.get_channel(config.modlog_channel_id)
-    message = await channel.send(content)
-    return message
+    channel = guild.get_channel(config.modlog_channel_id if config else 0)
+    if channel:
+        message = await channel.send(content)
+        return message
 
 
 async def edit_log_message(infraction, **kwargs):

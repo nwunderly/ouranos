@@ -1,11 +1,8 @@
 import asyncio
-import datetime
-import re
-
 import discord
 import logging
-from typing import Union
 
+from typing import Union
 from discord.ext import commands
 
 from ouranos.cog import Cog
@@ -13,8 +10,8 @@ from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
 from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.constants import TICK_RED
-from ouranos.utils.converters import FetchedUser
+from ouranos.utils.converters import UserID
+from ouranos.utils.errors import UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 
 
 logger = logging.getLogger(__name__)
@@ -221,44 +218,40 @@ class Modlog(Cog):
         if isinstance(log, SmallLogEvent):
             await SMALL_LOGS[log.type](log.guild, log.user, log.infraction_id)
 
+    async def _get_modlog_channel(self, guild):
+        config = await db.get_config(guild)
+        modlog_channel = guild.get_channel(config.modlog_channel_id if config else 0)
+        if not modlog_channel:
+            raise NotConfigured('modlog_channel')
+        return modlog_channel
+
+    async def _get_infraction(self, guild_id, infraction_id):
+        infraction = await modlog.get_infraction(guild_id, infraction_id)
+        if not infraction:
+            raise InfractionNotFound(infraction_id)
+        return infraction
+
+    async def _fetch_infraction_message(self, ctx, guild, infraction_id):
+        modlog_channel = await self._get_modlog_channel(guild)
+        infraction = await self._get_infraction(guild.id, infraction_id)
+        message_id = infraction.message_id
+        message = await modlog_channel.fetch_message(message_id)
+        if not message:
+            raise ModlogMessageNotFound(infraction_id, ctx.prefix)
+        return message
+
     @commands.group(aliases=['case'], invoke_without_command=True)
     @server_mod()
     async def infraction(self, ctx, infraction_id: int):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
-        try:
-            config = await db.get_config(ctx.guild)
-            modlog_channel = ctx.guild.get_channel(config.modlog_channel_id)
-            infraction = await modlog.get_infraction(ctx.guild.id, infraction_id)
-            if not infraction:
-                return await ctx.send(f"{TICK_RED} I couldn't find infraction #{infraction_id} for this guild.")
-            message_id = infraction.message_id
-            message = await modlog_channel.fetch_message(message_id)
-            if not message:
-                return await ctx.send(f"{TICK_RED} I couldn't find a message for infraction #{infraction_id}. "
-                                      f"Try `{await self.bot.prefix(ctx.message)}infraction json {infraction_id}` instead.")
-        except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.jump_url)
 
     @infraction.command()
     @server_mod()
     async def view(self, ctx, infraction_id: int):
         """View the logged message for an infraction."""
-        try:
-            config = await db.get_config(ctx.guild)
-            modlog_channel = ctx.guild.get_channel(config.modlog_channel_id)
-            infraction = await modlog.get_infraction(ctx.guild.id, infraction_id)
-            if not infraction:
-                return await ctx.send(f"{TICK_RED} I couldn't find infraction #{infraction_id} for this guild.")
-            message_id = infraction.message_id
-            message = await modlog_channel.fetch_message(message_id)
-            if not message:
-                return await ctx.send(f"{TICK_RED} I couldn't find a message for infraction #{infraction_id}. "
-                                      f"Try `{await self.bot.prefix(ctx.message)}infraction json {infraction_id}` instead.")
-        except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.content)
 
     def infraction_to_dict(self, infraction):
@@ -273,50 +266,32 @@ class Modlog(Cog):
             'created_at': str(infraction.created_at) if infraction.created_at else None,
             'ends_at': str(infraction.ends_at) if infraction.ends_at else None,
             'active': infraction.active
-        } if infraction else None
+        }
 
     @infraction.command()
     @server_mod()
     async def json(self, ctx, infraction_id: int):
         """View the database entry for an infraction in JSON format."""
-        try:
-            infraction = await modlog.get_infraction(ctx.guild.id, infraction_id)
-            if not infraction:
-                return await ctx.send(f"{TICK_RED} I couldn't find infraction #{infraction_id} for this guild.")
-            serialized = str(self.infraction_to_dict(infraction))
-        except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
 
     @infraction.command(aliases=['edit-reason'])
     @server_mod()
     async def edit_reason(self, ctx, infraction_id: int, *, new_reason):
         """Edit the reason for an infraction."""
-        try:
-            infraction = await modlog.get_infraction(ctx.guild.id, infraction_id)
-            if not infraction:
-                return await ctx.send(f"{TICK_RED} I couldn't find infraction #{infraction_id} for this guild.")
-            new_reason = f"{new_reason} (edited by {ctx.author})"
-            _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason)
-        except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        new_reason = f"{new_reason} (edited by {ctx.author})"
+        _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason)
         await ctx.send(message.jump_url)
         
     @infraction.command(aliases=['edit-note'])
     @server_mod()
     async def edit_note(self, ctx, infraction_id: int, *, new_note):
         """Edit the note for an infraction."""
-        try:
-            infraction = await modlog.get_infraction(ctx.guild.id, infraction_id)
-            if not infraction:
-                return await ctx.send(f"{TICK_RED} I couldn't find infraction #{infraction_id} for this guild.")
-            new_note = f"{new_note} (edited by {ctx.author})"
-            _, message = await modlog.edit_infraction_and_message(infraction, note=new_note)
-        except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        new_note = f"{new_note} (edited by {ctx.author})"
+        _, message = await modlog.edit_infraction_and_message(infraction, note=new_note)
         await ctx.send(message.jump_url)
 
     def history_to_dict(self, history):
@@ -328,31 +303,31 @@ class Modlog(Cog):
             'ban': history.ban,
             'unban': history.unban,
             'active': history.active
-        } if history else None
+        }
+
+    async def _get_history(self, guild_id, user_id):
+        history = await db.History.get_or_none(guild_id=guild_id, user_id=user_id)
+        if not history:
+            raise HistoryNotFound
 
     @commands.group(invoke_without_command=True)
     @server_mod()
-    async def history(self, ctx, *, user: Union[discord.Member, discord.User, FetchedUser]):
+    async def history(self, ctx, *, user: UserID):
         """View a user's infraction history."""
-        try:
-            history = await db.History.get_or_none(guild_id=ctx.guild.id, user_id=user.id)
-            serialized = str(self.history_to_dict(history))
-        except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+        history = await self._get_history(ctx.guild.id, user.id)
+        serialized = str(self.history_to_dict(history))
         await ctx.send("```py\n" + serialized + "\n```")
 
     @history.command()
     @server_admin()
-    async def clear(self, ctx, *, user: Union[discord.Member, discord.User, FetchedUser]):
+    async def clear(self, ctx, *, user: UserID):
         """Reset a user's infraction history.
         This does not delete any infractions, just cleans the references to them in their history.
         """
         try:
             await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
         except Exception as e:
-            logger.exception(e)
-            return await ctx.send(f'{e.__class__.__name__}: {e}')
+            raise UnexpectedError(f'{e.__class__.__name__}: {e}')
         await ctx.send(f"Removed infraction history for {user}.")
 
 

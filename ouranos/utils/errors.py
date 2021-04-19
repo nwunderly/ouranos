@@ -11,6 +11,11 @@ class UnexpectedError(OuranosCommandError):
     pass
 
 
+class NotConfigured(OuranosCommandError):
+    def __init__(self, option):
+        super().__init__(f"This guild is missing the **{option}** configuration option.")
+
+
 class ModerationError(OuranosCommandError):
     pass
 
@@ -18,11 +23,6 @@ class ModerationError(OuranosCommandError):
 class UserNotInGuild(ModerationError):
     def __init__(self, user):
         super().__init__(f"User **{user}** is not in this guild.")
-
-
-class NotConfigured(ModerationError):
-    def __init__(self, option):
-        super().__init__(f"This guild is missing the **{option}** configuration option.")
 
 
 class BotMissingPermission(ModerationError):
@@ -38,3 +38,23 @@ class BotRoleHierarchyError(ModerationError):
 class ModActionOnMod(ModerationError):
     def __init__(self):
         super().__init__("You cannot perform moderation actions on other server moderators!")
+
+
+class ModlogError(OuranosCommandError):
+    pass
+
+
+class InfractionNotFound(ModlogError):
+    def __init__(self, infraction_id):
+        super().__init__(f"I couldn't find infraction #{infraction_id} for this guild.")
+
+
+class ModlogMessageNotFound(ModlogError):
+    def __init__(self, infraction_id, p='?'):
+        super().__init__(f"I couldn't find a message for infraction #{infraction_id}. "
+                         f"Try `{p}infraction json {infraction_id}` instead.")
+
+
+class HistoryNotFound(ModlogError):
+    def __init__(self):
+        super().__init__("That user has no past infractions.")

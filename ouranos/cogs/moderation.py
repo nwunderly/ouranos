@@ -54,7 +54,7 @@ async def try_send(user, message):
     try:
         await user.send(message)
         return True
-    except discord.Forbidden:
+    except discord.DiscordException:
         return False
 
 
@@ -274,13 +274,26 @@ class Moderation(Cog):
         else:
             delivered = None
 
+        # set up a task that waits a few moments for discord to dispatch the event.
+        # this makes printing the user look pretty without having to fetch.
+        async def _wait():
+            try:
+                def check(_, _u):
+                    return _u.id == user.id
+                _, _u = await self.bot.wait_for('member_ban', check=check, timeout=1)
+                return _u
+            except asyncio.TimeoutError:
+                pass
+
         # ban the user
-        await guild.ban(user, reason=audit_reason, delete_message_days=0)
+        u, _ = await asyncio.gather(_wait(), guild.ban(user, reason=audit_reason, delete_message_days=0))
+        if u:
+            user = u
 
         # dispatch the modlog event and return to the command
         type = ('force' if not member else '') + 'ban'
         await LogEvent(type, guild, user, mod, reason, note, duration).dispatch()
-        return delivered, not bool(member)
+        return user, delivered, not bool(member)
 
     async def _do_ban_duration_edit(self, guild, user, new_duration, edited_by):
         """Edits the duration of an existing ban infraction."""
@@ -493,7 +506,7 @@ class Moderation(Cog):
             await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
 
         else:
-            delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
+            user, delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
             banned = 'Forcebanned' if force else 'Banned'
             await ctx.send(f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}")
 
