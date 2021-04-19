@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import time
 import typing
 
@@ -17,7 +18,8 @@ from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
 from ouranos.utils.constants import TICK_RED, TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP
 from ouranos.utils.converters import Duration, UserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
 from ouranos.utils.helpers import exact_timedelta
-from ouranos.utils.errors import ModerationError, UserNotInGuild, NotConfigured, BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
+from ouranos.utils.errors import OuranosCommandError, ModerationError, UserNotInGuild, NotConfigured, \
+    BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
 
 
 logger = logging.getLogger(__name__)
@@ -525,19 +527,30 @@ class Moderation(Cog):
     async def _do_removal(self, ctx, limit, check=None, channel=None, **kwargs):
         if limit >= 200:
             if not await self.bot.confirm_action(ctx, f"This will delete up to {limit} messages. Are you sure? (y/n)"):
-                return await ctx.send("Canceled!")
+                raise OuranosCommandError("Canceled!")
+        if limit < 1:
+            raise OuranosCommandError("Not enough messages to search!")
+            
+        def real_check(m):
+            return m != ctx.message and (check(m) if check else True)
 
-        messages = await (channel or ctx.channel).purge(limit=limit, check=check, **kwargs)
+        messages = await (channel or ctx.channel).purge(limit=limit+1, check=real_check, **kwargs)
 
         count = len(messages)
         authors = defaultdict(lambda: 0)
         for m in messages:
-            authors[str(m.author)] += 1
+            authors[str(m.author.name)] += 1
 
         s = 's'if count != 1 else ''
-        response = f"Removed {count} message{s}\n\n"
-        response += '\n'.join((f"{a}: {n}" for a, n in authors.items()))
-        await ctx.send(response, delete_after=5)
+        response = f"{TICK_GREEN} Removed {count} message{s}."
+        response += "```yaml\n" + '\n'.join((f"{a}: {n}" for a, n in authors.items())) + "\n```"
+        msg = await ctx.send(response)
+        await asyncio.sleep(10)
+        try:
+            await msg.delete()
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass
 
     @commands.group(aliases=['rm', 'purge', 'clean'], invoke_without_command=True)
     @checks.server_mod()
@@ -558,31 +571,56 @@ class Moderation(Cog):
     @remove.command(name='bot', aliases=['bots'])
     async def rm_bot(self, ctx, prefix: typing.Optional[NotInt], limit: int):
         """Remove messages sent by bots."""
-        await self._do_removal(ctx, limit=limit, check=lambda m: m.author.bot or m.startswith(prefix))
+        await self._do_removal(ctx, limit=limit, check=lambda m: m.author.bot or (prefix and m.content.startswith(prefix)))
 
-    @remove.command(name='file', aliases=['files'])
-    async def rm_files(self, ctx):
-        pass
+    @remove.command(name='files', aliases=['file', 'attachment', 'attachments'])
+    async def rm_files(self, ctx, limit: int):
+        """Remove messages with attachments."""
+        await self._do_removal(ctx, limit=limit, check=lambda m: len(m.attachments) > 0)
 
-    @remove.command(name='link', aliases=['links'])
-    async def rm_links(self, ctx):
-        pass
+    @remove.command(name='embeds', aliases=['embed'])
+    async def rm_embeds(self, ctx, limit: int):
+        """Remove messages with embeds."""
+        await self._do_removal(ctx, limit=limit, check=lambda m: len(m.embeds) > 0)
+
+    @remove.command(name='links', aliases=['link', 'url', 'urls'])
+    async def rm_links(self, ctx, limit: int):
+        """Remove messages matching URL regex search."""
+        def check(m):
+            return re.search(r"https?://[^\s]{2,}", m.content)
+
+        await self._do_removal(ctx, limit=limit, check=check)
 
     @remove.command(name='contains')
-    async def rm_contains(self, ctx):
-        pass
+    async def rm_contains(self, ctx, substring, case_insensitive: Optional[bool], limit: int):
+        """Remove messages containing a substring."""
+        def check(m):
+            if case_insensitive:
+                return substring.lower() in m.content.lower()
+            else:
+                return substring in m.content
 
-    @remove.group(name='regex', aliases=['re'])
-    async def rm_regex(self, ctx):
-        pass
+        await self._do_removal(ctx, limit=limit, check=check)
+
+    @remove.group(name='regex', aliases=['re'], invoke_without_command=True)
+    async def rm_regex(self, ctx, pattern, limit: int):
+        """Remove messages matching a regex pattern. Be careful with this one!
+
+        Uses `re.search()`.
+        """
+        pattern = re.compile(pattern)
+        await self._do_removal(ctx, limit=limit, check=lambda m: bool(pattern.search(m.content)))
 
     @rm_regex.command(name='fullmatch', aliases=['full'])
-    async def rm_re_fullmatch(self, ctx):
-        pass
+    async def rm_re_fullmatch(self, ctx, pattern, limit: int):
+        """Regex removal, but uses `re.fullmatch()` instead."""
+        pattern = re.compile(pattern)
+        await self._do_removal(ctx, limit=limit, check=lambda m: bool(pattern.fullmatch(m.content)))
 
-    @remove.command()
+    @remove.command(name='custom')
     async def rm_custom(self, ctx):
-        pass
+        """Not implemented."""
+        raise OuranosCommandError("This command is in development.")
 
 
 def setup(bot):

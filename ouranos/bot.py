@@ -14,7 +14,7 @@ from discord.ext import tasks
 from ouranos.settings import Settings
 from ouranos.utils import database as db
 from ouranos.utils.constants import TICK_RED
-from ouranos.utils.errors import ModerationError
+from ouranos.utils.errors import OuranosCommandError, UnexpectedError
 
 
 logger = logging.getLogger(__name__)
@@ -182,15 +182,17 @@ class Ouranos(commands.AutoShardedBot):
     async def _respond_to_error(self, ctx, error):
         if isinstance(error, commands.UserInputError):
             await ctx.send(f"{TICK_RED} {str(error).capitalize()}")
-        elif isinstance(error, ModerationError):
+        elif isinstance(error, UnexpectedError):
+            await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error}\n```')
+        elif isinstance(error, OuranosCommandError):
             await ctx.send(f"{TICK_RED} {error}")
         elif isinstance(error, discord.Forbidden):
             await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
         elif isinstance(error, commands.CommandInvokeError):
             original = error.original
-            if isinstance(original, discord.Forbidden):
+            if isinstance(original or error, discord.Forbidden):
                 await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
-            elif isinstance(original, discord.HTTPException):
+            elif isinstance(original or error, discord.HTTPException):
                 await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error}\n```')
 
     async def on_command_error(self, ctx, exception):
