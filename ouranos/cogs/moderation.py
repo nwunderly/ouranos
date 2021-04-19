@@ -270,7 +270,7 @@ class Moderation(Cog):
                 message = format_alert_dm(guild, user, 'ban', reason=reason, duration=duration)
                 delivered = await try_send(user, message)
             else:
-                delivered = False
+                delivered = None
         else:
             delivered = None
 
@@ -286,9 +286,13 @@ class Moderation(Cog):
                 pass
 
         # ban the user
-        u, _ = await asyncio.gather(_wait(), guild.ban(user, reason=audit_reason, delete_message_days=0))
-        if u:
-            user = u
+        coro = guild.ban(user, reason=audit_reason, delete_message_days=0)
+        if member:
+            # regular ban
+            await coro
+        else:
+            # forceban case
+            user = (await asyncio.gather(_wait(), coro))[1] or user
 
         # dispatch the modlog event and return to the command
         type = ('force' if not member else '') + 'ban'
