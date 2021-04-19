@@ -187,3 +187,12 @@ class RequiredReason(Reason):
         if not reason:
             raise commands.BadArgument('a reason is required for this command.')
         return reason, note, r
+
+
+class NotInt(commands.Converter):
+    async def convert(self, ctx, argument):
+        try:
+            int(argument)
+            raise commands.BadArgument
+        except ValueError:
+            return argument

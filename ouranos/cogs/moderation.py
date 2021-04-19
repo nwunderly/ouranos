@@ -1,10 +1,12 @@
 import asyncio
 import logging
 import time
+import typing
 
 import discord
 from discord.ext import commands
 from discord.ext import tasks
+from collections import defaultdict
 from typing import Optional, Union
 
 from ouranos.cog import Cog
@@ -13,7 +15,7 @@ from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
 from ouranos.utils.constants import TICK_RED, TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP
-from ouranos.utils.converters import Duration, Reason, RequiredReason, UserID, MutedUser, BannedUser
+from ouranos.utils.converters import Duration, UserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
 from ouranos.utils.helpers import exact_timedelta
 from ouranos.utils.errors import ModerationError, UserNotInGuild, NotConfigured, BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
 
@@ -514,19 +516,72 @@ class Moderation(Cog):
         else:
             count = await modlog.deactivate_infractions(ctx.guild.id, user.id, 'ban')
             p = await self.bot.prefix(ctx.message)
-            _s, _these = ('s', 'these') if count > 1 else ('', 'this')
+            s, these = ('s', 'these') if count != 1 else ('', 'this')
             await ctx.send(f"{TICK_YELLOW} This user does not seem to be in this guild's ban list, "
-                           f"but I found {count} active ban infraction{_s} in my database.\n"
-                           f"I marked {_these} infraction{_s} as inactive to account for this discrepancy. "
+                           f"but I found {count} active ban infraction{s} in my database.\n"
+                           f"I marked {these} infraction{s} as inactive to account for this discrepancy. "
                            f"`{p}history {user.id}` should now show no active bans.")
 
-    async def _do_removal(self):
+    async def _do_removal(self, ctx, limit, check=None, channel=None, **kwargs):
+        if limit >= 200:
+            if not await self.bot.confirm_action(ctx, f"This will delete up to {limit} messages. Are you sure? (y/n)"):
+                return await ctx.send("Canceled!")
+
+        messages = await (channel or ctx.channel).purge(limit=limit, check=check, **kwargs)
+
+        count = len(messages)
+        authors = defaultdict(lambda: 0)
+        for m in messages:
+            authors[str(m.author)] += 1
+
+        s = 's'if count != 1 else ''
+        response = f"Removed {count} message{s}\n\n"
+        response += '\n'.join((f"{a}: {n}" for a, n in authors.items()))
+        await ctx.send(response, delete_after=5)
+
+    @commands.group(aliases=['rm', 'purge', 'clean'], invoke_without_command=True)
+    @checks.server_mod()
+    async def remove(self, ctx, limit: int):
+        """Bulk delete messages from a channel."""
+        await self._do_removal(ctx, limit)
+
+    @remove.command(name='user', aliases=['by'])
+    async def rm_user(self, ctx, user: UserID, limit: int):
+        """Remove messages by a particular user."""
+        await self._do_removal(ctx, limit, lambda m: m.author == user)
+
+    @remove.command(name='channel', aliases=['in'])
+    async def rm_channel(self, ctx, channel: discord.TextChannel, limit: int):
+        """Remove messages in another channel."""
+        await self._do_removal(ctx, limit=limit, channel=channel)
+
+    @remove.command(name='bot', aliases=['bots'])
+    async def rm_bot(self, ctx, prefix: typing.Optional[NotInt], limit: int):
+        """Remove messages sent by bots."""
+        await self._do_removal(ctx, limit=limit, check=lambda m: m.author.bot or m.startswith(prefix))
+
+    @remove.command(name='file', aliases=['files'])
+    async def rm_files(self, ctx):
         pass
 
-    @commands.group(aliases=['rm'])
-    @checks.server_mod()
-    async def remove(self, ctx):
-        """NOT IMPLEMENTED"""
+    @remove.command(name='link', aliases=['links'])
+    async def rm_links(self, ctx):
+        pass
+
+    @remove.command(name='contains')
+    async def rm_contains(self, ctx):
+        pass
+
+    @remove.group(name='regex', aliases=['re'])
+    async def rm_regex(self, ctx):
+        pass
+
+    @rm_regex.command(name='fullmatch', aliases=['full'])
+    async def rm_re_fullmatch(self, ctx):
+        pass
+
+    @remove.command()
+    async def rm_custom(self, ctx):
         pass
 
 

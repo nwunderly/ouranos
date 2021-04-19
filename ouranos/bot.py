@@ -266,3 +266,8 @@ class Ouranos(commands.AutoShardedBot):
         if not members:
             return None
         return members[0]
+
+    async def confirm_action(self, ctx, message):
+        await ctx.channel.send(message)
+        msg = await self.wait_for('message', check=lambda m: m.author == ctx.author)
+        return msg.content.lower() in ('0', 'true', 'yes', 'y')
