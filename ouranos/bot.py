@@ -123,9 +123,9 @@ class Ouranos(commands.AutoShardedBot):
             try:
                 self.load_extension(cog)
                 # await self.load_cog(cog)
-                logger.info(f"-> Loaded {cog}.")
+                logger.info(f"Loaded {cog}.")
             except Exception:
-                logger.exception(f"-> Failed to load extension {cog}.")
+                logger.exception(f"Failed to load extension {cog}.")
 
     async def unload_cogs(self):
         # TODO

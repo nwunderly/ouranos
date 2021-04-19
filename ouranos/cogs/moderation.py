@@ -576,31 +576,37 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit)
 
     @remove.command(name='user', aliases=['by'])
+    @checks.server_mod()
     async def rm_user(self, ctx, user: UserID, limit: int):
         """Remove messages by a particular user."""
         await self._do_removal(ctx, limit, lambda m: m.author == user)
 
     @remove.command(name='channel', aliases=['in'])
+    @checks.server_mod()
     async def rm_channel(self, ctx, channel: discord.TextChannel, limit: int):
         """Remove messages in another channel."""
         await self._do_removal(ctx, limit=limit, channel=channel)
 
     @remove.command(name='bot', aliases=['bots'])
+    @checks.server_mod()
     async def rm_bot(self, ctx, prefix: typing.Optional[NotInt], limit: int):
         """Remove messages sent by bots."""
         await self._do_removal(ctx, limit=limit, check=lambda m: m.author.bot or (prefix and m.content.startswith(prefix)))
 
     @remove.command(name='files', aliases=['file', 'attachment', 'attachments'])
+    @checks.server_mod()
     async def rm_files(self, ctx, limit: int):
         """Remove messages with attachments."""
         await self._do_removal(ctx, limit=limit, check=lambda m: len(m.attachments) > 0)
 
     @remove.command(name='embeds', aliases=['embed'])
+    @checks.server_mod()
     async def rm_embeds(self, ctx, limit: int):
         """Remove messages with embeds."""
         await self._do_removal(ctx, limit=limit, check=lambda m: len(m.embeds) > 0)
 
     @remove.command(name='links', aliases=['link', 'url', 'urls'])
+    @checks.server_mod()
     async def rm_links(self, ctx, limit: int):
         """Remove messages matching URL regex search."""
         def check(m):
@@ -609,6 +615,7 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit=limit, check=check)
 
     @remove.command(name='contains')
+    @checks.server_mod()
     async def rm_contains(self, ctx, substring, case_insensitive: Optional[bool], limit: int):
         """Remove messages containing a substring."""
         def check(m):
@@ -620,6 +627,7 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit=limit, check=check)
 
     @remove.group(name='regex', aliases=['re'], invoke_without_command=True)
+    @checks.server_mod()
     async def rm_regex(self, ctx, pattern, limit: int):
         """Remove messages matching a regex pattern. Be careful with this one!
 
@@ -629,15 +637,17 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit=limit, check=lambda m: bool(pattern.search(m.content)))
 
     @rm_regex.command(name='fullmatch', aliases=['full'])
+    @checks.server_mod()
     async def rm_re_fullmatch(self, ctx, pattern, limit: int):
         """Regex removal, but uses `re.fullmatch()` instead."""
         pattern = re.compile(pattern)
         await self._do_removal(ctx, limit=limit, check=lambda m: bool(pattern.fullmatch(m.content)))
 
-    @remove.command(name='custom')
-    async def rm_custom(self, ctx):
-        """Not implemented."""
-        raise OuranosCommandError("This command is in development.")
+    # @remove.command(name='custom')
+    # @checks.server_mod()
+    # async def rm_custom(self, ctx):
+    #     """Not implemented."""
+    #     raise OuranosCommandError("This command is in development.")
 
 
 def setup(bot):

@@ -5,6 +5,7 @@ from discord.ext import commands
 from typing import Union
 
 from ouranos.cog import Cog
+from ouranos.settings import Settings
 from ouranos.utils import database as db
 from ouranos.utils.checks import is_bot_admin, server_admin
 from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
@@ -72,7 +73,7 @@ class Config(Cog):
         """Edit this server's prefix."""
         config = await db.get_config(ctx.guild)
         if not prefix:
-            return await ctx.send(f"My prefix here is `{config.prefix}`.")
+            return await ctx.send(f"My prefix here is `{config.prefix if config else Settings.prefix}`.")
         elif len(prefix) > 10:
             return await ctx.send(f"{TICK_RED} That prefix is too long! Prefix must be <=10 characters.")
         await db.update_config(config=config, prefix=prefix)
