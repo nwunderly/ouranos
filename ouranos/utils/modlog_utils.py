@@ -159,8 +159,8 @@ async def edit_infraction_and_message(infraction, **kwargs):
 
 
 # TODO: benchmark the 3 implementations of this
-async def has_active_infraction(guild_id, user_id, type):  # "pure" implementation
-    return await db.Infraction.exists(guild_id=guild_id, user_id=user_id, type=type, active=True)
+async def has_active_infraction(guild_id, user_id, type):
+    return await _has_active_infraction_history(guild_id, user_id, type)
 
 
 async def _has_active_infraction_history(guild_id, user_id, type):  # history-based implementation
