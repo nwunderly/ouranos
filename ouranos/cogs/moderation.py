@@ -440,8 +440,21 @@ class Moderation(Cog):
 
         # if already muted, edit the duration
         if muted_user and has_role:
-            i = await self._do_mute_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
-            await ctx.send(f"{TICK_YELLOW} User is already muted (#{i}), changed duration instead ({dt}).")
+            # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
+            if await modlog.has_active_infraction(ctx.guild.id, user.id, 'mute'):
+                i = await self._do_mute_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+                await ctx.send(f"{TICK_YELLOW} User is already muted (#{i}), changed duration instead ({dt}).")
+
+            # just kidding, we couldn't find an infraction. let's see if they want to create one.
+            # note: we get a confirmation so things don't break when two infractions go through simultaneously
+            else:
+                if await self.bot.confirm_action(ctx, f"{TICK_YELLOW} This user appears to have this guild's mute role, "
+                                                      f"but does not have any active mute infractions. "
+                                                      f"Would you like to create an infraction?"):
+                    await LogEvent('mute', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
+                    await ctx.send(OK_HAND)
+                else:
+                    raise OuranosCommandError("Canceled!")
 
         # otherwise, mute the user like normal
         else:
@@ -506,9 +519,23 @@ class Moderation(Cog):
 
         # if already banned, edit the duration
         if banned_user and banned_in_guild:
-            i = await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
-            await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
+            # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
+            if await modlog.has_active_infraction(ctx.guild.id, user.id, 'mute'):
+                i = await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+                await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
 
+            # just kidding, we couldn't find an infraction. let's see if they want to create one.
+            # note: we get a confirmation so things don't break when two infractions go through simultaneously
+            else:
+                if await self.bot.confirm_action(ctx, f"{TICK_YELLOW} This user appears to be banned from this guild, "
+                                                      f"but does not have any active ban infractions. "
+                                                      f"Would you like to create an infraction?"):
+                    await LogEvent('ban', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
+                    await ctx.send(OK_HAND)
+                else:
+                    raise OuranosCommandError("Canceled!")
+
+        # we didn't seem to find anything weird, so let's just ban!
         else:
             user, delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
             banned = 'Forcebanned' if force else 'Banned'

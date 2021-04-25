@@ -269,7 +269,10 @@ class Ouranos(commands.AutoShardedBot):
             return None
         return members[0]
 
-    async def confirm_action(self, ctx, message):
+    async def confirm_action(self, ctx, message, timeout=5):
         await ctx.channel.send(message)
-        msg = await self.wait_for('message', check=lambda m: m.author == ctx.author)
-        return msg.content.lower() in ('0', 'true', 'yes', 'y')
+        try:
+            msg = await self.wait_for('message', check=lambda m: m.author == ctx.author, timeout=timeout)
+        except asyncio.TimeoutError:
+            msg = None
+        return msg and msg.content.lower() in ('1', 'true', 'yes', 'y')
