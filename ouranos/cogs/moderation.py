@@ -116,7 +116,7 @@ class Moderation(Cog):
         config = await db.get_config(member.guild)
         if not (config and config.mute_role_id):
             return
-        role = member.guild.get_role(config.mute_role)
+        role = member.guild.get_role(config.mute_role_id)
         if role in member.roles and not await modlog.has_active_infraction(member.guild.id, member.id, 'mute'):
             reason = "Infraction created automatically."
             note = "Muted user left guild but did not have any active mute infractions."

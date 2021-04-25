@@ -158,7 +158,7 @@ async def edit_infraction_and_message(infraction, **kwargs):
 
 
 async def has_active_infraction(guild_id, user_id, type):
-    return await db.Infraction.exists(guild_id=guild_id, user_id=user_id, type=type)
+    return await db.Infraction.exists(guild_id=guild_id, user_id=user_id, type=type, active=True)
 
 
 async def deactivate_infractions(guild_id, user_id, type):
