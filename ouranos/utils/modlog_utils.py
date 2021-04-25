@@ -158,25 +158,12 @@ async def edit_infraction_and_message(infraction, **kwargs):
     return i, m
 
 
-# TODO: benchmark the 3 implementations of this
 async def has_active_infraction(guild_id, user_id, type):
-    return await _has_active_infraction_history(guild_id, user_id, type)
-
-
-async def _has_active_infraction_history(guild_id, user_id, type):  # history-based implementation
     history = await get_history(guild_id, user_id)
     for i in getattr(history, type):
-        if i in history.active or ((inf := await get_infraction(guild_id, i)) and inf.active):
+        if i in history.active:
             return True
     return False
-
-
-async def _has_active_infraction_exists(guild_id, user_id, type):  # cached EXISTS implementation (cache is unique to this function)
-    if (guild_id, user_id, type) in active_infraction_exists_cache:
-        return active_infraction_exists_cache[guild_id, user_id, type]
-    exists = await db.Infraction.exists(guild_id=guild_id, user_id=user_id, type=type, active=True)
-    active_infraction_exists_cache[guild_id, user_id, type] = exists
-    return exists
 
 
 async def deactivate_infractions(guild_id, user_id, type):

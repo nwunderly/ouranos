@@ -294,6 +294,10 @@ class Modlog(Cog):
         _, message = await modlog.edit_infraction_and_message(infraction, note=new_note)
         await ctx.send(message.jump_url)
 
+    # @infraction.command(aliases=['remove'])
+    # async def delete(self, infraction_id: int):
+    #     pass
+
     def history_to_dict(self, history):
         return {
             'warn': history.warn,
@@ -318,17 +322,17 @@ class Modlog(Cog):
         serialized = str(self.history_to_dict(history))
         await ctx.send("```py\n" + serialized + "\n```")
 
-    @history.command()
-    @server_admin()
-    async def clear(self, ctx, *, user: UserID):
-        """Reset a user's infraction history.
-        This does not delete any infractions, just cleans the references to them in their history.
-        """
-        try:
-            await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
-        except Exception as e:
-            raise UnexpectedError(f'{e.__class__.__name__}: {e}')
-        await ctx.send(f"Removed infraction history for {user}.")
+    # @history.command()
+    # @server_admin()
+    # async def clear(self, ctx, *, user: UserID):
+    #     """Reset a user's infraction history.
+    #     This does not delete any infractions, just cleans the references to them in their history.
+    #     """
+    #     try:
+    #         await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
+    #     except Exception as e:
+    #         raise UnexpectedError(f'{e.__class__.__name__}: {e}')
+    #     await ctx.send(f"Removed infraction history for {user}.")
 
 
 def setup(bot):
