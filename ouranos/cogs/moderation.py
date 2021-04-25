@@ -111,6 +111,17 @@ class Moderation(Cog):
                     infraction = await modlog.get_infraction(member.guild.id, i)
                     return await self._do_auto_mute(member.guild, member, infraction)
 
+    @Cog.listener()
+    async def on_member_remove(self, member):
+        config = await db.get_config(member.guild)
+        if not (config and config.mute_role_id):
+            return
+        role = member.guild.get_role(config.mute_role)
+        if role in member.roles and not await modlog.has_active_infraction(member.guild.id, member.id, 'mute'):
+            reason = "Infraction created automatically."
+            note = "Muted user left guild but did not have any active mute infractions."
+            await LogEvent('mute', member.guild, member, self.bot.user, reason, note, None).dispatch()
+
     async def _do_warn(self, guild, user, mod, reason, note=None):
         """Applies a warn to a user and dispatches the event to the modlog."""
         config = await db.get_config(guild)
