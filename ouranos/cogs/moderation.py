@@ -531,7 +531,7 @@ class Moderation(Cog):
         # if already banned, edit the duration
         if banned_user and banned_in_guild:
             # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
-            if await modlog.has_active_infraction(ctx.guild.id, user.id, 'mute'):
+            if await modlog.has_active_infraction(ctx.guild.id, user.id, 'ban'):
                 i = await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
                 await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
 
