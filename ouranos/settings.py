@@ -2,9 +2,9 @@ import discord
 
 
 class Settings:
-    version = '1.1.2'
+    version = '1.1.3'
     prefix = "?"
-    description = 'A simple and opinionated Discord mod bot.'
+    description = 'A simple and opinionated moderation bot.'
     author = "nwunder#4003"
 
     embed_color = discord.Color(0x7289da)

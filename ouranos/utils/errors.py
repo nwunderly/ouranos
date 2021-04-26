@@ -56,5 +56,9 @@ class ModlogMessageNotFound(ModlogError):
 
 
 class HistoryNotFound(ModlogError):
-    def __init__(self):
-        super().__init__("That user has no past infractions.")
+    def __init__(self, user=None):
+        if user:
+            msg = f"I couldn't find any past infractions for user {user}."
+        else:
+            msg = "That user has no past infractions."
+        super().__init__(msg)

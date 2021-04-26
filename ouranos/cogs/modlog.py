@@ -2,7 +2,6 @@ import asyncio
 import discord
 import logging
 
-from typing import Union
 from discord.ext import commands
 
 from ouranos.cog import Cog
@@ -11,7 +10,8 @@ from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
 from ouranos.utils.checks import server_mod, server_admin
 from ouranos.utils.converters import UserID
-from ouranos.utils.errors import UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
+from ouranos.utils.constants import TICK_GREEN
+from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 
 
 logger = logging.getLogger(__name__)
@@ -240,7 +240,7 @@ class Modlog(Cog):
             raise ModlogMessageNotFound(infraction_id, ctx.prefix)
         return message
 
-    @commands.group(aliases=['case'], invoke_without_command=True)
+    @commands.group(aliases=['i', 'case'], invoke_without_command=True)
     @server_mod()
     async def infraction(self, ctx, infraction_id: int):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
@@ -276,7 +276,7 @@ class Modlog(Cog):
         serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
 
-    @infraction.command(aliases=['edit-reason'])
+    @infraction.command(aliases=['edit-reason', 'editr'])
     @server_mod()
     async def edit_reason(self, ctx, infraction_id: int, *, new_reason):
         """Edit the reason for an infraction."""
@@ -285,7 +285,7 @@ class Modlog(Cog):
         _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason)
         await ctx.send(message.jump_url)
         
-    @infraction.command(aliases=['edit-note'])
+    @infraction.command(aliases=['edit-note', 'editn'])
     @server_mod()
     async def edit_note(self, ctx, infraction_id: int, *, new_note):
         """Edit the note for an infraction."""
@@ -294,9 +294,20 @@ class Modlog(Cog):
         _, message = await modlog.edit_infraction_and_message(infraction, note=new_note)
         await ctx.send(message.jump_url)
 
-    # @infraction.command(aliases=['remove'])
-    # async def delete(self, infraction_id: int):
-    #     pass
+    @infraction.command(name='delete')
+    @server_admin()
+    async def infraction_delete(self, ctx, infraction_id: int):
+        """Remove all references to an infraction from a user's history.
+
+        This does not actually delete the infraction, so it can still be viewed and edited if the id is known.
+        """
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        history = await self._get_history(ctx.guild.id, infraction.user_id)
+        for _list in [getattr(history, infraction.type), history.active]:
+            if infraction_id in _list:
+                _list.remove(infraction_id)
+        await history.save()
+        await ctx.send(f"{TICK_GREEN} Removed infraction **#{infraction_id}** ({infraction.type}) for user {infraction.user_id}.")
 
     def history_to_dict(self, history):
         return {
@@ -312,7 +323,7 @@ class Modlog(Cog):
     async def _get_history(self, guild_id, user_id):
         history = await db.History.get_or_none(guild_id=guild_id, user_id=user_id)
         if not history:
-            raise HistoryNotFound
+            raise HistoryNotFound(user_id)
 
     @commands.group(invoke_without_command=True)
     @server_mod()
@@ -322,17 +333,21 @@ class Modlog(Cog):
         serialized = str(self.history_to_dict(history))
         await ctx.send("```py\n" + serialized + "\n```")
 
-    # @history.command()
-    # @server_admin()
-    # async def clear(self, ctx, *, user: UserID):
-    #     """Reset a user's infraction history.
-    #     This does not delete any infractions, just cleans the references to them in their history.
-    #     """
-    #     try:
-    #         await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
-    #     except Exception as e:
-    #         raise UnexpectedError(f'{e.__class__.__name__}: {e}')
-    #     await ctx.send(f"Removed infraction history for {user}.")
+    @history.command(name='delete')
+    @server_admin()
+    async def history_delete(self, ctx, *, user: UserID):
+        """Reset a user's infraction history.
+        This does not delete any infractions, just cleans the references to them in their history.
+        """
+        if await self.bot.confirm_action(ctx, f'Are you sure you want to wipe infraction history for {user}? '
+                                              f'This could result in currently-active infractions behaving unexpectedly.'):
+            try:
+                await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
+            except Exception as e:
+                raise UnexpectedError(f'{e.__class__.__name__}: {e}')
+            await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
+        else:
+            raise OuranosCommandError("Canceled!")
 
 
 def setup(bot):

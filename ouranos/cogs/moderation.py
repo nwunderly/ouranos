@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 from collections import defaultdict
-from typing import Optional, Union
+from typing import Optional
 
 from ouranos.cog import Cog
 from ouranos.utils import checks
@@ -399,8 +399,8 @@ class Moderation(Cog):
         return can_unmute
 
     async def _do_auto_unban(self, guild, user_id, infraction):
-        """Applies a mute role to a user without dispatching the modlog event.
-        Used for handling expired mutes without creating an infraction.
+        """Removes a ban from a user without dispatching the modlog event.
+        Used for handling expired bans without creating an infraction.
         """
         infraction_id = infraction.infraction_id
 
@@ -548,7 +548,8 @@ class Moderation(Cog):
 
         # we didn't seem to find anything weird, so let's just ban!
         else:
-            user, delivered, force = await self._do_ban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
+            user, delivered, force = await self._do_ban(
+                guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
             banned = 'Forcebanned' if force else 'Banned'
             await ctx.send(f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}")
 
