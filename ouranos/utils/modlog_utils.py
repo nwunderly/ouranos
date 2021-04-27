@@ -147,7 +147,7 @@ async def edit_infraction_and_message(infraction, **kwargs):
     else:
         edited_by = None
     k1, k2 = kwargs.copy(), kwargs.copy()
-    if 'duration' in kwargs:
+    if 'duration' in kwargs and kwargs['duration']:
         duration = kwargs.pop('duration')
         ends_at = infraction.created_at + duration
         k1['ends_at'] = ends_at
