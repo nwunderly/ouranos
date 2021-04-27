@@ -329,7 +329,7 @@ class Modlog(Cog):
         }
 
     async def _get_history(self, guild_id, user_id):
-        history = await db.History.get_or_none(guild_id=guild_id, user_id=user_id)
+        history = await modlog.get_history(guild_id, user_id)
         if not history:
             raise HistoryNotFound(user_id)
 
