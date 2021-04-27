@@ -1,4 +1,5 @@
 import asyncio
+import time
 import discord
 import logging
 
@@ -12,6 +13,7 @@ from ouranos.utils.checks import server_mod, server_admin
 from ouranos.utils.converters import UserID, Duration
 from ouranos.utils.constants import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
+from ouranos.utils.helpers import exact_timedelta, WEEK
 
 
 logger = logging.getLogger(__name__)
@@ -325,7 +327,7 @@ class Modlog(Cog):
             raise HistoryNotFound(user_id)
         return history
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(aliases=['h'], invoke_without_command=True)
     @server_mod()
     async def history(self, ctx, *, user: UserID):
         """View a user's infraction history."""
@@ -356,6 +358,50 @@ class Modlog(Cog):
             await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
         else:
             raise OuranosCommandError("Canceled!")
+
+    @commands.command()
+    @server_mod()
+    async def lookup(self, ctx, *, user: UserID):
+        """Looks up a user in the infraction database. Returns useful info on currently-active infractions."""
+        history = await self._get_history(ctx.guild.id, user.id)
+        now = time.time()
+        s = f"**{user} Infraction status:**\n"
+
+        h_by_type = {}
+        for _type in ['warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
+            h_by_type.update({i: _type for i in getattr(history, _type)})
+        infraction_ids = sorted(h_by_type.keys(), reverse=True)
+        infractions = [await modlog.get_infraction(ctx.guild.id, i) for i in infraction_ids]
+        recent = []
+        for infraction in infractions:
+            if infraction.created_at - now < WEEK:
+                recent.append(infraction)
+
+        if history.active:
+            s += f"\n{len(history.active)} currently active:\n"
+            for a in history.active:
+                infraction = await modlog.get_infraction(ctx.guild.id, a)
+                mod = ctx.guild.get_member(infraction.mod_id) or infraction.mod_id
+                s += f"\t#{a}: {infraction.type} by {mod} (`{infraction.reason}`)\n"
+                if infraction.ends_at:
+                    dt_tot = infraction.ends_at - infraction.created_at
+                    dt_rem = infraction.ends_at - now
+                    s += f"\t- {exact_timedelta(dt_tot)}, {exact_timedelta(dt_rem)} remaining.\n"
+
+        else:
+            s += f"\nNo currently active infractions.\n"
+
+        if (not history.active) and recent:
+            s += f"\nRecent infractions:\n"
+            for infraction in recent:
+                mod = ctx.guild.get_member(infraction.mod_id) or infraction.mod_id
+                s += f"\t#{infraction.infraction_id}: {infraction.type} by {mod} (`{infraction.reason}`)\n"
+
+        else:
+            if not recent:
+                s += f"\nNo recent infractions."
+
+        await ctx.send(s)
 
 
 def setup(bot):
