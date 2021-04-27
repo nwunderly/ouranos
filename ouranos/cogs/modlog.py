@@ -321,14 +321,13 @@ class Modlog(Cog):
         history = await modlog.get_history(guild_id, user_id)
         if not history:
             raise HistoryNotFound(user_id)
+        return history
 
     @commands.group(invoke_without_command=True)
     @server_mod()
     async def history(self, ctx, *, user: UserID):
         """View a user's infraction history."""
-        print(user)
         history = await self._get_history(ctx.guild.id, user.id)
-        print(history)
         serialized = str({
             'warn': history.warn,
             'mute': history.mute,
