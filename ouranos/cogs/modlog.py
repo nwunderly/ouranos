@@ -243,10 +243,12 @@ class Modlog(Cog):
         modlog_channel = await self._get_modlog_channel(guild)
         infraction = await self._get_infraction(guild.id, infraction_id)
         message_id = infraction.message_id
-        message = await modlog_channel.fetch_message(message_id)
-        if not message:
-            raise ModlogMessageNotFound(infraction_id, ctx.prefix)
-        return message
+        if message_id:
+            try:
+                return await modlog_channel.fetch_message(message_id)
+            except discord.NotFound:
+                pass
+        raise ModlogMessageNotFound(infraction_id, ctx.prefix)
 
     @commands.group(aliases=['i', 'case'], invoke_without_command=True)
     @server_mod()
