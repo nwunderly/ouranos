@@ -382,7 +382,7 @@ class Modlog(Cog):
             for a in history.active:
                 infraction = await modlog.get_infraction(ctx.guild.id, a)
                 mod = ctx.guild.get_member(infraction.mod_id) or infraction.mod_id
-                s += f"\t#{a}: {infraction.type} by {mod} (`{infraction.reason}`)\n"
+                s += f"\t#{a}: {infraction.type} by {mod} (`{infraction.reason or None}`)\n"
                 if infraction.ends_at:
                     dt_tot = infraction.ends_at - infraction.created_at
                     dt_rem = infraction.ends_at - now
