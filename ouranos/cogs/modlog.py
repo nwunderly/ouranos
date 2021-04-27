@@ -317,17 +317,6 @@ class Modlog(Cog):
         await history.save()
         await ctx.send(f"{TICK_GREEN} Removed infraction **#{infraction_id}** ({infraction.type}) for user {infraction.user_id}.")
 
-    def history_to_dict(self, history):
-        return {
-            'warn': history.warn,
-            'mute': history.mute,
-            'unmute': history.unmute,
-            'kick': history.kick,
-            'ban': history.ban,
-            'unban': history.unban,
-            'active': history.active
-        }
-
     async def _get_history(self, guild_id, user_id):
         history = await modlog.get_history(guild_id, user_id)
         if not history:
@@ -337,8 +326,18 @@ class Modlog(Cog):
     @server_mod()
     async def history(self, ctx, *, user: UserID):
         """View a user's infraction history."""
+        print(user)
         history = await self._get_history(ctx.guild.id, user.id)
-        serialized = str(self.history_to_dict(history))
+        print(history)
+        serialized = str({
+            'warn': history.warn,
+            'mute': history.mute,
+            'unmute': history.unmute,
+            'kick': history.kick,
+            'ban': history.ban,
+            'unban': history.unban,
+            'active': history.active
+        })
         await ctx.send("```py\n" + serialized + "\n```")
 
     @history.command(name='delete')
