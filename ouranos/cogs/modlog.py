@@ -386,7 +386,7 @@ class Modlog(Cog):
                 if infraction.ends_at:
                     dt_tot = infraction.ends_at - infraction.created_at
                     dt_rem = infraction.ends_at - now
-                    s += f"\t- {exact_timedelta(dt_tot)}, {exact_timedelta(dt_rem)} remaining.\n"
+                    s += f"\t- Duration: {exact_timedelta(dt_tot)}\n\t- Remaining: {exact_timedelta(dt_rem)}\n"
 
         else:
             s += f"\nNo currently active infractions.\n"
@@ -395,7 +395,7 @@ class Modlog(Cog):
             s += f"\nRecent infractions:\n"
             for infraction in recent:
                 mod = ctx.guild.get_member(infraction.mod_id) or infraction.mod_id
-                s += f"\t#{infraction.infraction_id}: {infraction.type} by {mod} (`{infraction.reason}`)\n"
+                s += f"\t#{infraction.infraction_id}: {infraction.type} by {mod} (`{infraction.reason or None}`)\n"
 
         else:
             if not recent:
