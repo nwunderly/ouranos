@@ -9,7 +9,7 @@ from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
 from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.converters import UserID
+from ouranos.utils.converters import UserID, Duration
 from ouranos.utils.constants import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 
@@ -46,6 +46,27 @@ class Modlog(Cog):
         config = await db.get_config(guild)
         return config and config.modlog_channel_id
 
+    def maybe_duration_from_audit_reason(self, reason):
+        if not reason:
+            return None, None
+        duration = None
+        s = reason.split(maxsplit=1)
+        d, r = (s[0], s[1]) if len(s) == 2 else (None, None)
+        try:
+            if d:
+                duration = Duration._real_convert(d)
+                reason = r
+        except commands.BadArgument:
+            pass
+        return duration, reason
+
+    def maybe_note_from_audit_reason(self, reason):
+        if not reason:
+            return None, None
+        s = reason.split('--', 1)
+        reason, note = (s[0], s[1]) if len(s) == 2 else (reason, None)
+        return reason, note
+
     @Cog.listener()
     async def on_member_ban(self, guild, user):
         if not await self.guild_has_modlog_config(guild):
@@ -53,9 +74,7 @@ class Modlog(Cog):
 
         logger.debug("ban detected")
 
-        moderator = None
-        reason = None
-        note = None
+        moderator, reason, note, duration = None, None, None, None
 
         await asyncio.sleep(2)
 
@@ -63,26 +82,19 @@ class Modlog(Cog):
             if entry.action == discord.AuditLogAction.ban and entry.target == user:
                 logger.debug("audit log entry found")
                 moderator = entry.user
-                reason = entry.reason
-                # TODO: parse note from audit log
+                duration, reason = self.maybe_duration_from_audit_reason(entry.reason)
+                reason, note = self.maybe_note_from_audit_reason(reason)
                 break
 
-        if moderator == self.bot.user:  # action was done by me
+        if (moderator == self.bot.user  # action was done by me
+                or moderator.id == 515067662028636170):  # Beemo (special support coming soontm)
             return
 
         # disable currently-active ban(s) for this user in this guild, if there are any
         await self.bot.run_in_background(
             modlog.deactivate_infractions(guild.id, user.id, 'ban'))
 
-        # TODO: fix this
-        # if isinstance(user, discord.User):  # forceban
-        #     logger.debug("it's a forceban")
-        #     await modlog.log_forceban(guild, user, moderator, reason, None)
-        # else:  # regular ban
-        #     logger.debug("it's a regular ban")
-        #     await modlog.log_ban(guild, user, moderator, reason, None)
-
-        await LogEvent('ban', guild, user, moderator, reason, note, None).dispatch()
+        await LogEvent('ban', guild, user, moderator, reason, note, duration).dispatch()
 
     @Cog.listener()
     async def on_member_remove(self, member):
@@ -91,9 +103,7 @@ class Modlog(Cog):
             return
 
         logger.debug("possible kick detected")
-        moderator = None
-        reason = None
-        note = None
+        moderator, reason, note = None, None, None
 
         await asyncio.sleep(2)
 
@@ -101,8 +111,7 @@ class Modlog(Cog):
             if entry.action == discord.AuditLogAction.kick and entry.target == member:
                 logger.debug("audit log entry found, it's a kick. logging")
                 moderator = entry.user
-                reason = entry.reason
-                # TODO: parse note from audit log
+                reason, note = self.maybe_note_from_audit_reason(entry.reason)
                 break
             elif entry.action == discord.AuditLogAction.ban and entry.target == member:
                 logger.debug("audit log entry found, it's a ban. ignoring")
@@ -128,8 +137,7 @@ class Modlog(Cog):
             return
 
         member = before
-        moderator = None
-        reason = None
+        moderator, reason, note, duration = None, None, None, None
         mute_role = guild.get_role(config.mute_role_id)
 
         await asyncio.sleep(2)
@@ -143,7 +151,7 @@ class Modlog(Cog):
                     self._last_audit_id_cache[guild.id] = entry.id
                     logger.debug("unmute audit log entry found")
                     moderator = entry.user
-                    reason = entry.reason
+                    reason, note = self.maybe_note_from_audit_reason(entry.reason)
                     break
 
             if moderator == self.bot.user:  # action was done by me
@@ -153,7 +161,7 @@ class Modlog(Cog):
             await self.bot.run_in_background(
                 modlog.deactivate_infractions(guild.id, member.id, 'mute'))
 
-            await LogEvent('unmute', guild, member, moderator, reason, None, None).dispatch()
+            await LogEvent('unmute', guild, member, moderator, reason, note, None).dispatch()
 
         elif mute_role in after.roles and mute_role not in before.roles:  # mute
             logger.debug("detected mute")
@@ -164,7 +172,8 @@ class Modlog(Cog):
                     self._last_audit_id_cache[guild.id] = entry.id
                     logger.debug("mute audit log entry found")
                     moderator = entry.user
-                    reason = entry.reason
+                    duration, reason = self.maybe_duration_from_audit_reason(entry.reason)
+                    reason, note = self.maybe_note_from_audit_reason(reason)
                     break
 
             if moderator == self.bot.user:  # action was done by me
@@ -174,7 +183,7 @@ class Modlog(Cog):
             await self.bot.run_in_background(
                 modlog.deactivate_infractions(guild.id, member.id, 'mute'))
 
-            await LogEvent('mute', guild, member, moderator, reason, None, None).dispatch()
+            await LogEvent('mute', guild, member, moderator, reason, note, duration).dispatch()
 
     @Cog.listener()
     async def on_member_unban(self, guild, user):
@@ -182,8 +191,7 @@ class Modlog(Cog):
             return
 
         logger.debug("unban detected")
-        moderator = None
-        reason = None
+        moderator, reason, note = None, None, None
 
         await asyncio.sleep(2)
 
@@ -191,7 +199,7 @@ class Modlog(Cog):
             if entry.action == discord.AuditLogAction.unban and entry.target == user:
                 logger.debug("audit log entry found")
                 moderator = entry.user
-                reason = entry.reason
+                reason, note = self.maybe_note_from_audit_reason(entry.reason)
                 break
 
         if moderator == self.bot.user:  # action was done by me
@@ -202,7 +210,7 @@ class Modlog(Cog):
             modlog.deactivate_infractions(guild.id, user.id, 'ban'))
 
         # dispatch the event
-        await LogEvent('unban', guild, user, moderator, reason, None, None).dispatch()
+        await LogEvent('unban', guild, user, moderator, reason, note, None).dispatch()
 
     @Cog.listener()
     async def on_log(self, log):

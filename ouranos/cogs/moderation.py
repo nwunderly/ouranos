@@ -453,7 +453,8 @@ class Moderation(Cog):
         if muted_user and has_role:
             # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
             if await modlog.has_active_infraction(ctx.guild.id, user.id, 'mute'):
-                i = await self._do_mute_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+                i = await self._do_mute_duration_edit(
+                    guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
                 await ctx.send(f"{TICK_YELLOW} User is already muted (#{i}), changed duration instead ({dt}).")
 
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
@@ -469,7 +470,8 @@ class Moderation(Cog):
 
         # otherwise, mute the user like normal
         else:
-            delivered = await self._do_mute(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
+            delivered = await self._do_mute(
+                guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
             await ctx.send(f"{OK_HAND} Muted **{user}** ({dt}). {notified(delivered)}")
 
     @commands.command()
@@ -485,7 +487,8 @@ class Moderation(Cog):
 
         # actually unmute them
         if has_role:
-            delivered = await self._do_unmute(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
+            delivered = await self._do_unmute(
+                guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
             await ctx.send(f"{PRAY} Unmuted **{user}**. {notified(delivered)}")
 
         # remove infraction from database if one was found but they're not muted.
@@ -507,7 +510,8 @@ class Moderation(Cog):
         """
         reason, note, audit_reason = reason or (None, None, None)
         audit_reason = audit_reason or Reason.format_reason(ctx)
-        delivered = await self._do_kick(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
+        delivered = await self._do_kick(
+            guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
         await ctx.send(f"{CLAP} Kicked **{user}**. {notified(delivered)}")
 
     @commands.command()
@@ -532,7 +536,8 @@ class Moderation(Cog):
         if banned_user and banned_in_guild:
             # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
             if await modlog.has_active_infraction(ctx.guild.id, user.id, 'ban'):
-                i = await self._do_ban_duration_edit(guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
+                i = await self._do_ban_duration_edit(
+                    guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
                 await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
 
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
@@ -567,7 +572,8 @@ class Moderation(Cog):
 
         # actually unban them
         if banned_in_guild:
-            await self._do_unban(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
+            await self._do_unban(
+                guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
             await ctx.send(f"{PRAY} Unbanned **{user}**.")
 
         # remove infraction from database if one was found but they're not banned.

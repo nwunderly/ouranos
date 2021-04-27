@@ -44,7 +44,8 @@ duration_pattern = re.compile(r"(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(
 
 
 class Duration(commands.Converter):
-    async def convert(self, ctx, argument):
+    @classmethod
+    def _real_convert(cls, argument):
         match = duration_pattern.match(argument)
 
         if not match or match.group(0) == "":
@@ -60,6 +61,9 @@ class Duration(commands.Converter):
             raise commands.BadArgument
 
         return w*7*24*60*60 + d*24*60*60 + h*60*60 + m*60 + s
+
+    async def convert(self, ctx, argument):
+        return self.__class__._real_convert(argument)
 
 
 class UserID(commands.Converter):
