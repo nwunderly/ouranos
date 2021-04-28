@@ -303,7 +303,7 @@ class Moderation(Cog):
             await coro
         else:
             # forceban case
-            user = (await asyncio.gather(_wait(), coro))[1] or user
+            user = (await asyncio.gather(_wait(), coro))[0] or user
 
         # dispatch the modlog event and return to the command
         type = ('force' if not member else '') + 'ban'
