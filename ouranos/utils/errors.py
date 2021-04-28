@@ -52,7 +52,7 @@ class InfractionNotFound(ModlogError):
 class ModlogMessageNotFound(ModlogError):
     def __init__(self, infraction_id, p='?'):
         super().__init__(f"I couldn't find a message for infraction #{infraction_id}. "
-                         f"Try `{p}infraction json {infraction_id}` instead.")
+                         f"Try `{p}infraction info {infraction_id}` instead.")
 
 
 class HistoryNotFound(ModlogError):

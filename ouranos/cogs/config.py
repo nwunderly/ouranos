@@ -52,19 +52,17 @@ class Config(Cog):
     async def config(self, ctx):
         config = await db.get_config(ctx.guild)
         if not config:
-            p = await ctx.bot.prefix(ctx.message)
+            p = ctx.prefix
             return await ctx.send(f"{TICK_YELLOW} This server is not set up yet. Use {p}init to create a config.")
         await ctx.send(
-            f"```\n"
-            f"Configuration for {ctx.guild.name} ({ctx.guild.id})\n"
-            f" - prefix: {config.prefix}\n"
-            f" - modlog_channel: {config.modlog_channel_id}\n"
-            f" - mute_role: {config.mute_role_id}\n"
-            f" - admin_role: {config.admin_role_id}\n"
-            f" - mod_role: {config.mod_role_id}\n"
-            f" - dm_on_infraction: {config.dm_on_infraction}\n"
-            f"```"
-        )
+            f"This server's configuration:```\n"
+            f"prefix: {config.prefix}\n"
+            f"modlog_channel: {config.modlog_channel_id}\n"
+            f"mute_role: {config.mute_role_id}\n"
+            f"admin_role: {config.admin_role_id}\n"
+            f"mod_role: {config.mod_role_id}\n"
+            f"dm_on_infraction: {config.dm_on_infraction}\n"
+            f"```")
 
     @config.command()
     @server_admin()

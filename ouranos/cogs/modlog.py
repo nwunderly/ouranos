@@ -13,7 +13,7 @@ from ouranos.utils.checks import server_mod, server_admin
 from ouranos.utils.converters import UserID, Duration
 from ouranos.utils.constants import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
-from ouranos.utils.helpers import exact_timedelta, WEEK
+from ouranos.utils.helpers import approximate_timedelta, exact_timedelta, WEEK
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ class Modlog(Cog):
 
         logger.debug("ban detected")
 
-        moderator, reason, note, duration = None, None, None, None
+        moderator = reason = note = duration = None
 
         await asyncio.sleep(2)
 
@@ -105,7 +105,7 @@ class Modlog(Cog):
             return
 
         logger.debug("possible kick detected")
-        moderator, reason, note = None, None, None
+        moderator = reason = note = None
 
         await asyncio.sleep(2)
 
@@ -139,7 +139,7 @@ class Modlog(Cog):
             return
 
         member = before
-        moderator, reason, note, duration = None, None, None, None
+        moderator = reason = note = duration = None
         mute_role = guild.get_role(config.mute_role_id)
 
         await asyncio.sleep(2)
@@ -193,7 +193,7 @@ class Modlog(Cog):
             return
 
         logger.debug("unban detected")
-        moderator, reason, note = None, None, None
+        moderator = reason = note = None
 
         await asyncio.sleep(2)
 
@@ -288,6 +288,33 @@ class Modlog(Cog):
         serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
 
+    @infraction.command()
+    @server_mod()
+    async def info(self, ctx, infraction_id: int):
+        """View the database entry for an infraction."""
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        if infraction.ends_at:
+            dt_tot = infraction.ends_at - infraction.created_at
+            dt_rem = infraction.ends_at - time.time()
+            duration = f"Duration: {exact_timedelta(dt_tot)}\n" if dt_tot else ""
+            remaining = f"Remaining: {exact_timedelta(dt_rem)}\n" if dt_rem > 0 else ""
+        else:
+            duration = remaining = ""
+
+        user = await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id) or infraction.user_id
+        mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+
+        await ctx.send(
+            f"Infraction #{infraction.infraction_id} ({infraction.type}):```\n"
+            f"User: {user}\n"
+            f"Moderator: {mod}\n"
+            f"{duration}"
+            f"{remaining}"
+            f"Reason: {infraction.reason}\n"
+            f"Note: {infraction.note}\n"
+            f"Active: {infraction.active}\n"
+            f"```")
+
     @infraction.command(aliases=['edit-reason', 'editr'])
     @server_mod()
     async def edit_reason(self, ctx, infraction_id: int, *, new_reason):
@@ -319,7 +346,8 @@ class Modlog(Cog):
             if infraction_id in _list:
                 _list.remove(infraction_id)
         await history.save()
-        await ctx.send(f"{TICK_GREEN} Removed infraction **#{infraction_id}** ({infraction.type}) for user {infraction.user_id}.")
+        user = (await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id)) or infraction.user_id
+        await ctx.send(f"{TICK_GREEN} Removed infraction #{infraction_id} ({infraction.type}) for user {user}.")
 
     async def _get_history(self, guild_id, user_id):
         history = await modlog.get_history(guild_id, user_id)
@@ -332,16 +360,16 @@ class Modlog(Cog):
     async def history(self, ctx, *, user: UserID):
         """View a user's infraction history."""
         history = await self._get_history(ctx.guild.id, user.id)
-        serialized = str({
-            'warn': history.warn,
-            'mute': history.mute,
-            'unmute': history.unmute,
-            'kick': history.kick,
-            'ban': history.ban,
-            'unban': history.unban,
-            'active': history.active
-        })
-        await ctx.send("```py\n" + serialized + "\n```")
+        await ctx.send(
+            f"Infraction history for {user}:```\n"
+            f"warn: {history.warn}\n"
+            f"mute: {history.mute}\n"
+            f"unmute: {history.unmute}\n"
+            f"kick: {history.kick}\n"
+            f"ban: {history.ban}\n"
+            f"unban: {history.unban}\n"
+            f"active: {history.active}\n"
+            f"```")
 
     @history.command(name='delete')
     @server_admin()
@@ -361,11 +389,11 @@ class Modlog(Cog):
 
     @commands.command()
     @server_mod()
-    async def lookup(self, ctx, *, user: UserID):
-        """Looks up a user in the infraction database. Returns useful info on currently-active infractions."""
+    async def status(self, ctx, *, user: UserID):
+        """Returns useful info on a user's recent infractions."""
         history = await self._get_history(ctx.guild.id, user.id)
         now = time.time()
-        s = f"**{user} Infraction status:**\n"
+        s = ""
 
         h_by_type = {}
         for _type in ['warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
@@ -378,28 +406,32 @@ class Modlog(Cog):
                 recent.append(infraction)
 
         if history.active:
-            s += f"\n{len(history.active)} currently active:\n"
+            s += f"Active infractions for {user}:```\n"
             for a in history.active:
                 infraction = await modlog.get_infraction(ctx.guild.id, a)
-                mod = ctx.guild.get_member(infraction.mod_id) or infraction.mod_id
-                s += f"\t#{a}: {infraction.type} by {mod} (`{infraction.reason or None}`)\n"
+                mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+                s += f"#{a}: {infraction.type} by {mod} ({infraction.reason or None})\n"
                 if infraction.ends_at:
                     dt_tot = infraction.ends_at - infraction.created_at
                     dt_rem = infraction.ends_at - now
-                    s += f"\t- Duration: {exact_timedelta(dt_tot)}\n\t- Remaining: {exact_timedelta(dt_rem)}\n"
+                    s += f"\tduration: {exact_timedelta(dt_tot)} (about {approximate_timedelta(dt_rem)} remaining)\n"
+            s += "```"
 
         else:
-            s += f"\nNo currently active infractions.\n"
+            s += "*No active infractions found.*\n"
 
         if (not history.active) and recent:
-            s += f"\nRecent infractions:\n"
-            for infraction in recent:
-                mod = ctx.guild.get_member(infraction.mod_id) or infraction.mod_id
-                s += f"\t#{infraction.infraction_id}: {infraction.type} by {mod} (`{infraction.reason or None}`)\n"
+            _recent = recent[:5]
+            s += f"Recent infractions for {user} (showing {len(_recent)}/{len(recent)}):```\n"
+            for infraction in _recent:
+                mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+                dt = now - infraction.created_at
+                s += f"#{infraction.infraction_id}: {infraction.type} by {mod} (about {approximate_timedelta(dt)} ago)\n"
+            s += "```"
 
         else:
             if not recent:
-                s += f"\nNo recent infractions."
+                s += f"\nNo currently active or recent infractions."
 
         await ctx.send(s)
 

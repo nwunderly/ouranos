@@ -2,7 +2,7 @@ import discord
 
 
 class Settings:
-    version = '1.1.5'
+    version = '1.1.6'
     prefix = "?"
     description = 'A simple and opinionated moderation bot.'
     author = "nwunder#4003"
