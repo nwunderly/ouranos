@@ -259,9 +259,9 @@ class Modlog(Cog):
         message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.jump_url)
 
-    @infraction.command()
+    @infraction.command(name='view')
     @server_mod()
-    async def view(self, ctx, infraction_id: int):
+    async def infraction_view(self, ctx, infraction_id: int):
         """View the logged message for an infraction."""
         message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.content)
@@ -280,17 +280,17 @@ class Modlog(Cog):
             'active': infraction.active
         }
 
-    @infraction.command()
+    @infraction.command(name='json')
     @server_mod()
-    async def json(self, ctx, infraction_id: int):
+    async def infraction_json(self, ctx, infraction_id: int):
         """View the database entry for an infraction in JSON format."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
 
-    @infraction.command()
+    @infraction.command(name='info')
     @server_mod()
-    async def info(self, ctx, infraction_id: int):
+    async def infraction_info(self, ctx, infraction_id: int):
         """View the database entry for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         if infraction.ends_at:
@@ -387,9 +387,9 @@ class Modlog(Cog):
         else:
             raise OuranosCommandError("Canceled!")
 
-    @commands.command()
+    @history.command(name='info')
     @server_mod()
-    async def status(self, ctx, *, user: UserID):
+    async def history_info(self, ctx, *, user: UserID):
         """Returns useful info on a user's recent infractions."""
         history = await self._get_history(ctx.guild.id, user.id)
         now = time.time()
