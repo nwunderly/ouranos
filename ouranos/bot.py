@@ -217,23 +217,25 @@ class Ouranos(commands.AutoShardedBot):
 
     @tasks.loop(minutes=20)
     async def update_presence(self):
-        activity = None
-        name = random.choice(Settings.activities).format(
-            version=Settings.version,
-            random_guild_name=random.choice(self.guilds).name,
-            user_count=len(self.users),
-            guild_count=len(self.guilds),
-        )
-        if name.lower().startswith("playing "):
-            activity = discord.Game(name.replace("playing ", ""))
-        elif name.lower().startswith("watching "):
-            activity = discord.Activity(type=discord.ActivityType.watching,
-                                        name=name.replace("watching", ""))
-        elif name.lower().startswith("listening to "):
-            activity = discord.Activity(type=discord.ActivityType.listening,
-                                        name=name.replace("listening to ", ""))
-        if activity:
-            await self.change_presence(activity=activity)
+        for shard in self.shards:
+            activity = None
+            name = random.choice(Settings.activities).format(
+                version=Settings.version,
+                random_guild_name=random.choice(self.guilds).name,
+                user_count=len(self.users),
+                guild_count=len(self.guilds),
+                shard=shard.id,
+            )
+            if name.lower().startswith("playing "):
+                activity = discord.Game(name.replace("playing ", ""))
+            elif name.lower().startswith("watching "):
+                activity = discord.Activity(type=discord.ActivityType.watching,
+                                            name=name.replace("watching ", ""))
+            elif name.lower().startswith("listening to "):
+                activity = discord.Activity(type=discord.ActivityType.listening,
+                                            name=name.replace("listening to ", ""))
+            if activity:
+                await self.change_presence(activity=activity, shard_id=shard.id)
 
     def blacklisted(self, *ids):
         for i in ids:

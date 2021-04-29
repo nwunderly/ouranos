@@ -2,9 +2,9 @@ import discord
 
 
 class Settings:
-    version = '1.1.6'
+    version = '1.1.7'
     prefix = "?"
-    description = 'A simple and opinionated moderation bot.'
+    description = 'A simple and opinionated Discord moderation bot.'
     author = "nwunder#4003"
 
     embed_color = discord.Color(0x7289da)
@@ -30,10 +30,12 @@ class Settings:
     ]
 
     activities = [
-        'playing version {version}',
+        'playing version {version} | shard {shard}',
         'watching {random_guild_name}',
         'watching {user_count} users',
         'watching {guild_count} guilds',
+        'watching you',
+        'listening to nwunder scream'
     ]
 
     intents = discord.Intents(

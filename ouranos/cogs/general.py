@@ -42,7 +42,7 @@ class General(Cog):
         # embed.add_field(name="Add me!", value=f'[invite]({Settings.invite_url})')
         embed.add_field(name="Support server", value=f'[join]({Settings.support_url})')
 
-        embed.set_footer(text=f'created by {Settings.author}')
+        embed.set_footer(text=f'made with ❤ by {Settings.author}')
         embed.timestamp = self.bot.user.created_at
         await ctx.send(embed=embed)
 
