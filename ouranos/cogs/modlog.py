@@ -396,7 +396,7 @@ class Modlog(Cog):
                 dt = now - infraction.created_at
                 s += f"#{infraction.infraction_id}: {infraction.type} by {mod} (about {approximate_timedelta(dt)} ago)\n"
                 if infraction.reason:
-                    s += f"\t- {infraction.reason}\n"
+                    s += f"\treason: {infraction.reason}\n"
             s += "```"
 
         else:
