@@ -280,7 +280,7 @@ class Ouranos(commands.AutoShardedBot):
 
     def _aloc(self):
         try:
-            with open('./data/aloc.txt') as fp:
+            with open('./aloc.txt') as fp:
                 self.aloc = int(fp.read())
         except:
             pass
