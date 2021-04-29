@@ -394,9 +394,12 @@ class Modlog(Cog):
             for infraction in _recent:
                 mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
                 dt = now - infraction.created_at
+                dt_tot = exact_timedelta(infraction.ends_at - infraction.created_at) if infraction.ends_at else None
                 s += f"#{infraction.infraction_id}: {infraction.type} by {mod} (about {approximate_timedelta(dt)} ago)\n"
                 if infraction.reason:
                     s += f"\treason: {infraction.reason}\n"
+                if dt_tot:
+                    s += f"\tduration: {dt_tot}\n"
             s += "```"
 
         else:
