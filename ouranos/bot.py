@@ -54,6 +54,7 @@ class Ouranos(commands.AutoShardedBot):
         self._exit_code = 0
         self._blacklist = set()
         self.started_at = datetime.datetime.now()
+        self.aloc = 0
         Ouranos.bot = self
         logger.info(f'Initialization complete.')
 
@@ -136,6 +137,7 @@ class Ouranos(commands.AutoShardedBot):
         Use this for any async tasks to be performed before the bot starts.
         (THE BOT WILL NOT BE LOGGED IN WHEN THIS IS CALLED)
         """
+        self._aloc()
         await db.init(self.__db_url)
         await self.load_cogs(Settings.cogs)
 
@@ -155,9 +157,8 @@ class Ouranos(commands.AutoShardedBot):
     async def on_message(self, message):
         if message.author.bot:
             return
-        if message.guild:
-            await self.process_mention(message)
-            await self.process_commands(message)
+        await self.process_mention(message)
+        await self.process_commands(message)
 
     async def process_mention(self, message):
         if message.content in [self.user.mention, '<@!%s>' % self.user.id]:
@@ -276,3 +277,10 @@ class Ouranos(commands.AutoShardedBot):
         except asyncio.TimeoutError:
             msg = None
         return msg and msg.content.lower() in ('1', 'true', 'yes', 'y')
+
+    def _aloc(self):
+        try:
+            with open('./data/aloc.txt') as fp:
+                self.aloc = int(fp.read())
+        except:
+            pass

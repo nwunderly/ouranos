@@ -1,0 +1,1 @@
+find . -name '*.py' | xargs wc -l | tail -n 1 | python3 -c "print(input().strip().split()[0])" > ./data/aloc.txt

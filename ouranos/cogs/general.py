@@ -24,10 +24,10 @@ class General(Cog):
         """Some info about me!"""
         embed = discord.Embed(color=Settings.embed_color)
         embed.description = self.bot.description
-        embed.set_author(name=str(self.bot.user), icon_url=self.bot.user.avatar_url)
+        embed.set_author(name="Ouranos")
         embed.add_field(name="Version", value=Settings.version)
         embed.add_field(name="Library", value='discord.py')
-        embed.add_field(name="OS", value='Ubuntu' if sys.platform == 'linux' else 'Windows')
+        embed.add_field(name="ALOC", value=f"{self.bot.aloc} lines")
 
         dt = datetime.datetime.now()-self.bot.started_at
         uptime = approximate_timedelta(dt)
