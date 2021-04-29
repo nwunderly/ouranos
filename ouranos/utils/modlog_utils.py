@@ -117,7 +117,7 @@ def format_edited_log_message(content, **kwargs):
         entry[match.group(1).lower()] = match.group(2)
 
     entry.update(kwargs)
-    return first_line + "".join(f"**{key.capitalize()}:** {entry[key]}\n" for key in order)
+    return first_line + "".join(f"**{key.capitalize()}:** {entry[key]}\n" for key in order if key in entry)
 
 
 def format_small_log_message(emoji, title, user, infraction_id):
