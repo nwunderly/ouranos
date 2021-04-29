@@ -30,7 +30,7 @@ class Settings:
     ]
 
     activities = [
-        'playing version {version} | shard {shard}',
+        'playing version {version}',
         'watching {random_guild_name}',
         'watching {user_count} users',
         'watching {guild_count} guilds',
