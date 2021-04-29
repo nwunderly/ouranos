@@ -189,11 +189,11 @@ class Ouranos(commands.AutoShardedBot):
         elif isinstance(error, discord.Forbidden):
             await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
         elif isinstance(error, commands.CommandInvokeError):
-            original = error.original
-            if isinstance(original or error, discord.Forbidden):
+            error = error.original or error
+            if isinstance(error, discord.Forbidden):
                 await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
-            elif isinstance(original or error, discord.HTTPException):
-                await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error}\n```')
+            elif isinstance(error, discord.HTTPException):
+                await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```')
 
     async def on_command_error(self, ctx, exception):
         if isinstance(exception, commands.CommandInvokeError):
