@@ -358,38 +358,6 @@ class Modlog(Cog):
     @commands.group(aliases=['h'], invoke_without_command=True)
     @server_mod()
     async def history(self, ctx, *, user: UserID):
-        """View a user's infraction history."""
-        history = await self._get_history(ctx.guild.id, user.id)
-        await ctx.send(
-            f"Infraction history for {user}:```\n"
-            f"warn: {history.warn}\n"
-            f"mute: {history.mute}\n"
-            f"unmute: {history.unmute}\n"
-            f"kick: {history.kick}\n"
-            f"ban: {history.ban}\n"
-            f"unban: {history.unban}\n"
-            f"active: {history.active}\n"
-            f"```")
-
-    @history.command(name='delete')
-    @server_admin()
-    async def history_delete(self, ctx, *, user: UserID):
-        """Reset a user's infraction history.
-        This does not delete any infractions, just cleans the references to them in their history.
-        """
-        if await self.bot.confirm_action(ctx, f'Are you sure you want to wipe infraction history for {user}? '
-                                              f'This could result in currently-active infractions behaving unexpectedly.'):
-            try:
-                await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
-            except Exception as e:
-                raise UnexpectedError(f'{e.__class__.__name__}: {e}')
-            await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
-        else:
-            raise OuranosCommandError("Canceled!")
-
-    @history.command(name='info')
-    @server_mod()
-    async def history_info(self, ctx, *, user: UserID):
         """Returns useful info on a user's recent infractions."""
         history = await self._get_history(ctx.guild.id, user.id)
         now = time.time()
@@ -420,9 +388,9 @@ class Modlog(Cog):
         else:
             s += "*No active infractions found.*\n"
 
-        if (not history.active) and recent:
+        if recent:
             _recent = recent[:5]
-            s += f"Recent infractions for {user} (showing {len(_recent)}/{len(recent)}):```\n"
+            s += f"\nRecent infractions for {user} (showing {len(_recent)}/{len(recent)}):```\n"
             for infraction in _recent:
                 mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
                 dt = now - infraction.created_at
@@ -434,6 +402,38 @@ class Modlog(Cog):
                 s += f"\nNo currently active or recent infractions."
 
         await ctx.send(s)
+
+    @history.command(name='delete')
+    @server_admin()
+    async def history_delete(self, ctx, *, user: UserID):
+        """Reset a user's infraction history.
+        This does not delete any infractions, just cleans the references to them in their history.
+        """
+        if await self.bot.confirm_action(ctx, f'Are you sure you want to wipe infraction history for {user}? '
+                                              f'This could result in currently-active infractions behaving unexpectedly.'):
+            try:
+                await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
+            except Exception as e:
+                raise UnexpectedError(f'{e.__class__.__name__}: {e}')
+            await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
+        else:
+            raise OuranosCommandError("Canceled!")
+
+    @history.command(name='all')
+    @server_mod()
+    async def history_all(self, ctx, *, user: UserID):
+        """View a user's complete infraction history."""
+        history = await self._get_history(ctx.guild.id, user.id)
+        await ctx.send(
+            f"Infraction history for {user}:```\n"
+            f"warn: {history.warn}\n"
+            f"mute: {history.mute}\n"
+            f"unmute: {history.unmute}\n"
+            f"kick: {history.kick}\n"
+            f"ban: {history.ban}\n"
+            f"unban: {history.unban}\n"
+            f"active: {history.active}\n"
+            f"```")
 
 
 def setup(bot):
