@@ -373,20 +373,20 @@ class Modlog(Cog):
             if infraction.created_at - now < WEEK:
                 recent.append(infraction)
 
-        if history.active:
-            s += f"Active infractions for {user}:```\n"
-            for a in history.active:
-                infraction = await modlog.get_infraction(ctx.guild.id, a)
-                mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
-                s += f"#{a}: {infraction.type} by {mod} ({infraction.reason or 'no reason'})\n"
-                if infraction.ends_at:
-                    dt_tot = infraction.ends_at - infraction.created_at
-                    dt_rem = infraction.ends_at - now
-                    s += f"\tduration: {exact_timedelta(dt_tot)} (about {approximate_timedelta(dt_rem)} remaining)\n"
-            s += "```"
+        # if history.active:
+        #     s += f"Active infractions for {user}:```\n"
+        #     for a in history.active:
+        #         infraction = await modlog.get_infraction(ctx.guild.id, a)
+        #         mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+        #         s += f"#{a}: {infraction.type} by {mod} ({infraction.reason or 'no reason'})\n"
+        #         if infraction.ends_at:
+        #             dt_tot = infraction.ends_at - infraction.created_at
+        #             dt_rem = infraction.ends_at - now
+        #             s += f"\tduration: {exact_timedelta(dt_tot)} (about {approximate_timedelta(dt_rem)} remaining)\n"
+        #     s += "```"
 
-        else:
-            s += "*No active infractions found.*\n"
+        # else:
+        #     s += "*No active infractions found.*\n"
 
         if recent:
             _recent = recent[:5]
@@ -395,12 +395,14 @@ class Modlog(Cog):
                 mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
                 dt = now - infraction.created_at
                 dt_tot = exact_timedelta(infraction.ends_at - infraction.created_at) if infraction.ends_at else None
-                s += f"#{infraction.infraction_id}: {infraction.type} by {mod}\n" \
+                dt_rem = approximate_timedelta(infraction.ends_at - now) if infraction.ends_at else None
+                s += f"#{infraction.infraction_id}: {'active ' if infraction.active else ''}{infraction.type} by {mod} ({infraction.reason})\n" \
                      f"\tabout {approximate_timedelta(dt)} ago\n"
+                if dt_tot:
+                    rem = f" (about {approximate_timedelta(dt_rem)} remaining)" if infraction.active else ''
+                    s += f"\tduration: {exact_timedelta(dt_tot)}{rem}\n"
                 if infraction.reason:
                     s += f"\treason: {infraction.reason}\n"
-                if dt_tot:
-                    s += f"\tduration: {dt_tot}\n"
             s += "```"
 
         else:
