@@ -6,18 +6,16 @@ import traceback
 import textwrap
 import contextlib
 import inspect
-import logging
 
 from discord.ext import commands
 from contextlib import redirect_stdout
+from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
 
-
-logger = logging.getLogger(__name__)
 
 
 class AddOrRemove(commands.Converter):

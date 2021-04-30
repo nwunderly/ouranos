@@ -1,11 +1,4 @@
 import datetime
-import logging
-import sys
-
-from logging.handlers import TimedRotatingFileHandler
-
-
-logger = logging.getLogger('utils.helpers')
 
 
 def list_by_category(guild):
@@ -16,29 +9,6 @@ def list_by_category(guild):
         for channel in category_channels:
             channels.append(channel)
     return channels
-
-
-def setup_logger(name, level, stream):
-    _logger = logging.getLogger(name)
-
-    filename = f'./logs/{name}.log'
-
-    file_handler = TimedRotatingFileHandler(filename=filename, when='midnight', backupCount=14)
-    # file_handler.setLevel(level)
-
-    stream_handler = logging.StreamHandler(sys.stdout)
-    # stream_handler.setLevel(level)
-
-    formatter = logging.Formatter('{asctime} - {levelname:7} - {name:22} - {message}', style='{')
-    file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
-
-    _logger.addHandler(file_handler)
-    if stream:
-        _logger.addHandler(stream_handler)
-    _logger.setLevel(level)
-
-    return _logger
 
 
 def approximate_timedelta(dt):

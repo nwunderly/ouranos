@@ -1,8 +1,6 @@
 import re
-import datetime
-import time
-
 import discord
+
 from discord.ext import commands
 
 from ouranos.utils import database as db

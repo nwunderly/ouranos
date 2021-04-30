@@ -1,14 +1,11 @@
 import json
-import logging
 
 from typing import List, Union, Type, Optional, Any
 from tortoise import fields, Tortoise
 from tortoise.models import Model
+from loguru import logger
 
 from ouranos.settings import Settings
-
-
-logger = logging.getLogger(__name__)
 
 
 async def edit_record(record, **kwargs):

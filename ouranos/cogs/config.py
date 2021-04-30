@@ -1,17 +1,14 @@
 import discord
-import logging
 
 from discord.ext import commands
 from typing import Union
+from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.settings import Settings
 from ouranos.utils import database as db
 from ouranos.utils.checks import is_bot_admin, server_admin
 from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
-
-
-logger = logging.getLogger(__name__)
 
 
 def config_exists(exists):

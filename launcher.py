@@ -1,33 +1,19 @@
-import logging
 from argparse import ArgumentParser
+from loguru import logger
 
 from ouranos.bot import Ouranos
-from ouranos.utils.helpers import setup_logger
+from ouranos.utils import log
 from auth import TOKEN_DEV, TOKEN_PROD, DB_URL_DEV, DB_URL_PROD
-
-
-logger = logging.getLogger('ouranos.launcher')
-
-
-log_levels = {
-    'debug': logging.DEBUG,
-    'info': logging.INFO,
-    'error': logging.ERROR,
-}
 
 
 def start_bot(args):
     dev = args.dev
-    log = args.log
+    lvl = args.log
 
-    if not log:
-        log = 'debug' if dev else 'info'
+    if not lvl:
+        lvl = 'debug' if dev else 'info'
 
-    level = log_levels[log]
-
-    setup_logger("ouranos", level, True)
-    setup_logger('discord', logging.INFO, True)
-    #setup_logger('tortoise', logging.DEBUG, False)
+    log.init(lvl.upper())
 
     token = TOKEN_DEV if dev else TOKEN_PROD
     db_url = DB_URL_DEV if dev else DB_URL_PROD

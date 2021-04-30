@@ -1,9 +1,9 @@
 import asyncio
 import time
 import discord
-import logging
 
 from discord.ext import commands
+from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.utils import database as db
@@ -14,9 +14,6 @@ from ouranos.utils.converters import UserID, Duration
 from ouranos.utils.constants import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 from ouranos.utils.helpers import approximate_timedelta, exact_timedelta, WEEK
-
-
-logger = logging.getLogger(__name__)
 
 
 LOGS = {

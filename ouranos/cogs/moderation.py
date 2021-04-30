@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import re
 import time
 import typing
@@ -9,6 +8,7 @@ from discord.ext import commands
 from discord.ext import tasks
 from collections import defaultdict
 from typing import Optional
+from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.utils import checks
@@ -20,9 +20,6 @@ from ouranos.utils.converters import Duration, UserID, MutedUser, BannedUser, Re
 from ouranos.utils.helpers import exact_timedelta
 from ouranos.utils.errors import OuranosCommandError, ModerationError, UserNotInGuild, NotConfigured, \
     BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
-
-
-logger = logging.getLogger(__name__)
 
 
 ALERT_FORMAT = {

@@ -1,17 +1,14 @@
 import discord
-import logging
 import re
 import time
 
 from discord.ext import commands
+from loguru import logger
 
 from ouranos.bot import Ouranos
 from ouranos.utils import database as db
 from ouranos.utils.constants import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN
 from ouranos.utils.helpers import exact_timedelta
-
-
-logger = logging.getLogger(__name__)
 
 
 infraction_cache = {}

@@ -2,7 +2,6 @@ import datetime
 import traceback
 
 import discord
-import logging
 import random
 import signal
 import asyncio
@@ -10,14 +9,12 @@ import json
 
 from discord.ext import commands
 from discord.ext import tasks
+from loguru import logger
 
 from ouranos.settings import Settings
 from ouranos.utils import database as db
 from ouranos.utils.constants import TICK_RED
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError
-
-
-logger = logging.getLogger(__name__)
 
 
 async def prefix(_bot, message, only_guild_prefix=False):
@@ -56,7 +53,6 @@ class Ouranos(commands.AutoShardedBot):
         self.started_at = datetime.datetime.now()
         self.aloc = 0
         Ouranos.bot = self
-        logger.info(f'Initialization complete.')
 
     async def run_safely(self, coro):
         try:
@@ -78,7 +74,6 @@ class Ouranos(commands.AutoShardedBot):
 
     async def start(self, *args, **kwargs):
         """Custom start method, handles async setup before login."""
-        logger.debug("Start method called.")
         try:
             self.loop.remove_signal_handler(signal.SIGINT)
             self.loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(self.close()))
@@ -124,8 +119,8 @@ class Ouranos(commands.AutoShardedBot):
             try:
                 self.load_extension(cog)
                 # await self.load_cog(cog)
-                logger.info(f"Loaded {cog}.")
-            except Exception:
+                logger.debug(f"Loaded {cog}.")
+            except:
                 logger.exception(f"Failed to load extension {cog}.")
 
     async def unload_cogs(self):
@@ -192,11 +187,12 @@ class Ouranos(commands.AutoShardedBot):
 
     async def on_command_error(self, ctx, exception):
         if isinstance(exception, commands.CommandInvokeError):
+            exc = exception.original or exception
             logger.error(f"Error invoking command '{ctx.command.qualified_name}' / "
                          f"author {ctx.author.id}, self {ctx.guild.id if ctx.guild else None}, "
                          f"channel {ctx.channel.id}, "
                          f"message {ctx.message.id}\n"
-                         f"{''.join(traceback.format_exception(exception.__class__, exception, exception.__traceback__))}")
+                         f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
         try:
             await self._respond_to_error(ctx, exception)
         except discord.DiscordException:
@@ -236,14 +232,23 @@ class Ouranos(commands.AutoShardedBot):
         return False
 
     def load_blacklist(self):
-        with open('./data/id_blacklist.json') as fp:
-            data = json.load(fp)
-            self._blacklist = set(data)
+        try:
+            with open('./data/id_blacklist.json') as fp:
+                data = json.load(fp)
+                self._blacklist = set(data)
+            logger.debug("Loaded blacklist")
+        except:
+            logger.warning("Failed to load blacklist.")
+            self._blacklist = set()
 
     def dump_blacklist(self):
-        with open('./data/id_blacklist.json', 'w') as fp:
-            data = list(self._blacklist)
-            json.dump(data, fp)
+        try:
+            with open('./data/id_blacklist.json', 'w') as fp:
+                data = list(self._blacklist)
+                json.dump(data, fp)
+                logger.debug("Dumped blacklist.")
+        except:
+            logger.warning("Failed to dump blacklist.")
 
     async def get_or_fetch_member(self, guild, member_id):
         member = guild.get_member(member_id)
@@ -276,5 +281,6 @@ class Ouranos(commands.AutoShardedBot):
         try:
             with open('./aloc.txt') as fp:
                 self.aloc = int(fp.read())
+            logger.debug("Loaded ALOC")
         except:
-            pass
+            logger.warning("Loading ALOC failed.")

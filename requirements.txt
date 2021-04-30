@@ -3,3 +3,4 @@ jishaku
 PyYaml
 psutil
 tortoise-orm[asyncpg]
+loguru

@@ -1,17 +1,13 @@
 import datetime
 import discord
-import logging
 import psutil
-import sys
 
 from discord.ext import commands
+from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.settings import Settings
 from ouranos.utils.helpers import approximate_timedelta
-
-
-logger = logging.getLogger(__name__)
 
 
 class General(Cog):
