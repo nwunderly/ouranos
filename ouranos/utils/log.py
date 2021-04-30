@@ -34,7 +34,7 @@ async def webhook_log(msg):
 def init(lvl):
     logger.remove()
 
-    debug = lvl == logging.DEBUG
+    debug = lvl == 'DEBUG'
 
     discord_log = logging.getLogger('discord')
     discord_log.setLevel(logging.INFO)
@@ -60,12 +60,12 @@ def init(lvl):
         retention='1 week',
         diagnose=debug,
         level=lvl,
-        filter=lambda r: r['name'] in to_log,
+        filter=lambda r: r['name'].startswith(to_log),
     )
 
     if not debug:
         logger.add(
             webhook_log,
             level=logging.ERROR,
-            filter=lambda r: r['name'] in to_log,
+            filter=lambda r: r['name'].startswith(to_log),
         )
