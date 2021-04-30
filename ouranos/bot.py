@@ -162,17 +162,11 @@ class Ouranos(commands.AutoShardedBot):
 
     async def process_mention(self, message):
         if message.content in [self.user.mention, '<@!%s>' % self.user.id]:
-            if not message.channel.permissions_for(message.guild.me).send_messages:
-                try:
-                    return await message.author.send("I don't have permission to send messages in that channel!")
-                except discord.Forbidden:
-                    return
-                pass
-            p = await self.prefix(message)
-            e = discord.Embed(title=f"Ouranos v{Settings.version}",
-                              color=Settings.embed_color,
-                              description=f"Prefix: `{p}`")
-            await message.channel.send(embed=e)
+            if message.channel.permissions_for(message.guild.me).send_messages:
+                p = await self.prefix(message)
+                await message.channel.send(
+                    f"<:pingboi:800873872387211275> **My prefix here is** `{p}`\n"
+                    f"(Use `{p}help` or `{p}about` for more info!)")
 
     async def prefix(self, message):
         return await self.command_prefix(self, message, only_guild_prefix=True)
