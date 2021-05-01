@@ -2,6 +2,7 @@ import aiohttp
 import logging
 import sys
 
+from collections import deque
 from loguru import logger
 from discord.webhook import Webhook, AsyncWebhookAdapter
 
@@ -25,47 +26,65 @@ class InterceptHandler(logging.Handler):
         logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
+def ouranos_or_main(r):
+    return r['name'].startswith(('__main__', 'ouranos'))
+
+
 async def webhook_log(msg):
     async with aiohttp.ClientSession() as session:
         webhook = Webhook.from_url(WEBHOOK_URL_PROD, adapter=AsyncWebhookAdapter(session))
         await webhook.send(f"```\n{msg}\n```")
 
 
+log_cache = deque(maxlen=100)
+
+
+def cache_log(msg):
+    log_cache.append(msg)
+
+
 def init(lvl):
     logger.remove()
-
     debug = lvl == 'DEBUG'
 
-    discord_log = logging.getLogger('discord')
-    discord_log.setLevel(logging.INFO)
-    discord_log.addHandler(InterceptHandler())
-
+    # main log (stdout, viewable with docker logs command)
     logger.add(
         sys.stdout,
         diagnose=debug,
     )
 
+    # discord log file
+    logging.getLogger('discord').addHandler(InterceptHandler())
     logger.add(
         './logs/discord.log',
         rotation='00:00',
         retention='1 week',
+        level='INFO',
         filter='discord',
     )
 
-    to_log = ('__main__', 'ouranos')
-
+    # ouranos log file
     logger.add(
         './logs/ouranos.log',
         rotation='00:00',
         retention='1 week',
         diagnose=debug,
         level=lvl,
-        filter=lambda r: r['name'].startswith(to_log),
+        filter=ouranos_or_main,
     )
 
+    # if production, also use webhook error log
     if not debug:
         logger.add(
             webhook_log,
-            level=logging.ERROR,
-            filter=lambda r: r['name'].startswith(to_log),
+            diagnose=False,
+            level='ERROR',
+            filter=ouranos_or_main,
         )
+
+    # cache of last 100 log messages
+    logger.add(
+        cache_log,
+        diagnose=False,
+        filter=ouranos_or_main,
+    )

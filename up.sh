@@ -1,6 +1,3 @@
-git pull
-docker build . --tag ouranos:latest
-
 docker run -d \
  --name ouranos \
  --network prod \
