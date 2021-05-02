@@ -90,7 +90,8 @@ class Moderation(Cog):
                 callback = types[infraction.type]
                 sleep = infraction.ends_at - now
                 n += 1
-                await self.bot.run_in_background(_lift_infraction(sleep, callback, guild, infraction.user_id, infraction))
+                await self.bot.run_in_background(
+                    _lift_infraction(sleep, callback, guild, infraction.user_id, infraction))
 
         dt = time.monotonic() - t0
         if n:
@@ -455,7 +456,7 @@ class Moderation(Cog):
                 await ctx.send(f"{TICK_YELLOW} User is already muted (#{i}), changed duration instead ({dt}).")
 
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
-            # note: we get a confirmation so things don't break when two infractions go through simultaneously
+            # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
                 if await self.bot.confirm_action(ctx, f"{TICK_YELLOW} This user appears to have this guild's mute role, "
                                                       f"but does not have any active mute infractions. "
@@ -538,7 +539,7 @@ class Moderation(Cog):
                 await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
 
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
-            # note: we get a confirmation so things don't break when two infractions go through simultaneously
+            # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
                 if await self.bot.confirm_action(ctx, f"{TICK_YELLOW} This user appears to be banned from this guild, "
                                                       f"but does not have any active ban infractions. "

@@ -132,7 +132,7 @@ class Ouranos(commands.AutoShardedBot):
         Use this for any async tasks to be performed before the bot starts.
         (THE BOT WILL NOT BE LOGGED IN WHEN THIS IS CALLED)
         """
-        self._aloc()
+        self.load_aloc()
         await db.init(self.__db_url)
         await self.load_cogs(Settings.cogs)
 
@@ -182,6 +182,8 @@ class Ouranos(commands.AutoShardedBot):
             error = error.original or error
             if isinstance(error, discord.Forbidden):
                 await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
+            elif isinstance(error, discord.NotFound):
+                await ctx.send(f"{TICK_RED} Not found: {error.text.lower().capitalize()}.")
             elif isinstance(error, discord.HTTPException):
                 await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```')
 
@@ -189,7 +191,7 @@ class Ouranos(commands.AutoShardedBot):
         if isinstance(exception, commands.CommandInvokeError):
             exc = exception.original or exception
             logger.error(f"Error invoking command '{ctx.command.qualified_name}' / "
-                         f"author {ctx.author.id}, self {ctx.guild.id if ctx.guild else None}, "
+                         f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
                          f"channel {ctx.channel.id}, "
                          f"message {ctx.message.id}\n"
                          f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
@@ -201,7 +203,7 @@ class Ouranos(commands.AutoShardedBot):
     async def on_command_completion(self, ctx):
         logger.info(f"Command '{ctx.command.qualified_name}' invoked / "
                     f"author {ctx.author.id}, "
-                    f"self {ctx.guild.id if ctx.guild else None}, "
+                    f"guild {ctx.guild.id if ctx.guild else None}, "
                     f"channel {ctx.channel.id}, "
                     f"message {ctx.message.id}")
 
@@ -277,7 +279,7 @@ class Ouranos(commands.AutoShardedBot):
             msg = None
         return msg and msg.content.lower() in ('1', 'true', 'yes', 'y')
 
-    def _aloc(self):
+    def load_aloc(self):
         try:
             with open('./aloc.txt') as fp:
                 self.aloc = int(fp.read())

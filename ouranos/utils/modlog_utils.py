@@ -161,9 +161,10 @@ async def edit_infraction_and_message(infraction, **kwargs):
 
 async def has_active_infraction(guild_id, user_id, type):
     history = await get_history(guild_id, user_id)
-    for i in getattr(history, type):
-        if i in history.active:
-            return True
+    if history:
+        for i in getattr(history, type):
+            if i in history.active:
+                return True
     return False
 
 

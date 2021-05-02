@@ -180,7 +180,7 @@ class Reason(commands.Converter):
 
     @classmethod
     def format_reason(cls, ctx, reason=None, note=None):
-        return f'{ctx.author} (id: {ctx.author.id}): {reason} (note: {note})'
+        return f'{ctx.author} ({ctx.author.id}): {reason} (note: {note})'
 
 
 class RequiredReason(Reason):
@@ -198,3 +198,33 @@ class NotInt(commands.Converter):
             raise commands.BadArgument
         except ValueError:
             return argument
+
+
+class A_OR_B(commands.converter):
+    OPTION_A = None
+    OPTION_B = None
+
+    async def convert(self, ctx, argument):
+        a = argument.lower()
+        if a == self.OPTION_A:
+            return True
+        elif a == self.OPTION_B:
+            return False
+        else:
+            raise commands.BadArgument(f"Expected `{self.OPTION_A}` or `{self.OPTION_B}`, got `{argument}`.")
+
+
+class Guild(commands.Converter):
+    async def convert(self, ctx, argument):
+        if argument == '.':
+            return ctx.guild
+        else:
+            return await commands.GuildConverter().convert(ctx, argument)
+
+
+class TextChannel(commands.Converter):
+    async def convert(self, ctx, argument):
+        if argument == '.':
+            return ctx.channel
+        else:
+            return await commands.TextChannelConverter().convert(ctx, argument)

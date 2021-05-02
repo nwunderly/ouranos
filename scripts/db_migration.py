@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 
 from ouranos.utils import database, modlog_utils
-from auth import DB_URL_DEV, SQUIRE_TOKEN
+from auth import DB_URL_PROD, TOKEN_PROD
 
 
 bot = commands.Bot(command_prefix='===', intents=discord.Intents.all())
@@ -14,27 +14,9 @@ bot.BANS = None
 infractions = []
 
 
-BIKINI_BOTTOM = 384811165949231104
-BAD_NOODLE = 541810707386335234
-MODS = [
-    204414611578028034,
-    279722793891790848,
-    533087803261714433,
-    375375057138089986,
-    316125981725425666,
-    304695409031512064,
-    280874216310439938,
-    687441325200769053,
-    448250281097035777,
-    224323277370294275,
-    325454303387058176,
-    299023554127593473,
-    423821773121912832,
-    298497141490450432,
-    309405894221758465,
-    426550338141683713
-]
-
+GUILD = 384811165949231104
+MUTED_ROLE = 541810707386335234
+MODS = []
 
 
 class Infraction:
@@ -51,8 +33,8 @@ async def on_ready():
     if not bot.RUNNING:
         print(f"Logged in as {bot.user}.")
         bot.RUNNING = True
-        bot.GUILD = bot.get_guild(BIKINI_BOTTOM)
-        bot.ROLE = bot.GUILD.get_role(BAD_NOODLE)
+        bot.GUILD = bot.get_guild(GUILD)
+        bot.ROLE = bot.GUILD.get_role(MUTED_ROLE)
         bot.BANS = await bot.GUILD.bans()
         await main()
 
@@ -69,7 +51,7 @@ async def load_from_aperture():
     with open("../data/infractions.csv", errors='ignore') as fp:
         lines = fp.readlines()
 
-    guild = bot.get_guild(BIKINI_BOTTOM)
+    guild = bot.get_guild(GUILD)
     aperture = guild.get_member(330770985450078208)
 
     for line in csv.reader(lines):
@@ -104,7 +86,7 @@ async def dump_to_ouranos():
     print("Dumping to db.")
     for infraction in infractions_sorted:
         i = await modlog_utils.new_infraction(
-            BIKINI_BOTTOM,
+            GUILD,
             infraction.user_id,
             infraction.mod_id,
             infraction.type,
@@ -115,7 +97,7 @@ async def dump_to_ouranos():
 
 
 async def main():
-    await database.init(DB_URL_DEV)
+    await database.init(DB_URL_PROD)
     print("Connected to ouranos db.")
 
     print("===== BEGINNING MIGRATION =====")
@@ -126,4 +108,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    bot.run(SQUIRE_TOKEN)
+    bot.run(TOKEN_PROD)

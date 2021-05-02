@@ -330,6 +330,21 @@ class Modlog(Cog):
         _, message = await modlog.edit_infraction_and_message(infraction, note=new_note)
         await ctx.send(message.jump_url)
 
+    @infraction.command(aliases=['edit-duration', 'editd'])
+    @server_mod()
+    async def edit_duratiion(self, ctx, infraction_id: int, new_duration: Duration):
+        """Edit the duration of a running infraction. Useful if the member is no longer in the server.
+
+        Note: this only works for mute and ban infractions.
+        """
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        if infraction.type not in ('mute', 'ban'):
+            raise OuranosCommandError("This command only works for mute and ban infractions.")
+        elif not infraction.active:
+            raise OuranosCommandError("This command is not active. Editing the duration will have no effect.")
+        _, message = await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=ctx.author)
+        await ctx.send(message.jump_url)
+
     @infraction.command(name='delete')
     @server_admin()
     async def infraction_delete(self, ctx, infraction_id: int):

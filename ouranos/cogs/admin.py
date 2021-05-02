@@ -15,18 +15,19 @@ from ouranos.cog import Cog
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
+from ouranos.utils.converters import A_OR_B, Guild
+from ouranos.utils.constants import OK_HAND
+from ouranos.utils.errors import InfractionNotFound
 
 
+class AddOrRemove(A_OR_B):
+    OPTION_A = 'add'
+    OPTION_B = 'remove'
 
-class AddOrRemove(commands.Converter):
-    async def convert(self, ctx, argument):
-        a = argument.lower()
-        if a == 'add':
-            return True
-        elif a == 'remove':
-            return False
-        else:
-            raise commands.BadArgument
+
+class ActiveOrInactive(A_OR_B):
+    OPTION_A = 'active'
+    OPTION_B = 'inactive'
 
 
 class Admin(Cog):
@@ -87,6 +88,17 @@ class Admin(Cog):
             f"History:```py\n{result_2}\n```\n"
             f"Misc (last_case_id):```py\n{result_3}\n```\n"
         )
+
+    # @_db.command(aliases=['force-infraction-state'])
+    # @bot_admin()
+    # async def force_infraction_state(self, ctx, guild_id: int, infraction_id: int, active_or_inactive: ActiveOrInactive):
+    #     """Force mark an infraction as either active or inactive in the database."""
+    #     infraction = await modlog.get_infraction(guild_id, infraction_id)
+    #     if not infraction:
+    #         raise InfractionNotFound(infraction_id)
+    #     await db.edit_record(infraction, active=active_or_inactive)
+    #     modlog.infraction_cache[]
+    #     await ctx.send(OK_HAND)
 
     @commands.command()
     @bot_admin()
