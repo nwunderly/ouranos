@@ -200,7 +200,7 @@ class NotInt(commands.Converter):
             return argument
 
 
-class A_OR_B(commands.converter):
+class A_OR_B(commands.Converter):
     OPTION_A = None
     OPTION_B = None
 
