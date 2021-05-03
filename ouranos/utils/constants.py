@@ -8,6 +8,7 @@ THUMBS_UP = '👍'
 PRAY = '🙏'
 HAMMER = '🔨'
 CLAP = '👏'
+PINGBOI = '<:pingboi:800873872387211275>'
 
 STATUS_ONLINE = '<:status_online:699642822378258547>'
 STATUS_IDLE = '<:status_idle:699642825087647784>'

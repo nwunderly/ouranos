@@ -16,6 +16,16 @@ class NotConfigured(OuranosCommandError):
         super().__init__(f"This guild is missing the **{option}** configuration option.")
 
 
+class ActionTimedOut(OuranosCommandError):
+    def __init__(self):
+        super().__init__("Timed out!")
+
+
+class ActionCanceled(OuranosCommandError):
+    def __init__(self):
+        super().__init__("Canceled!")
+
+
 class ModerationError(OuranosCommandError):
     pass
 

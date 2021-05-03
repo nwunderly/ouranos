@@ -1,4 +1,5 @@
 import datetime
+import time
 import discord
 import psutil
 
@@ -8,6 +9,8 @@ from loguru import logger
 from ouranos.cog import Cog
 from ouranos.settings import Settings
 from ouranos.utils.helpers import approximate_timedelta
+from ouranos.utils.checks import is_bot_admin
+from ouranos.utils.constants import PINGBOI
 
 
 class General(Cog):
@@ -45,8 +48,19 @@ class General(Cog):
     @commands.command()
     async def invite(self, ctx):
         """Get the bot's invite URL."""
-        url = Settings.invite_url
-        await ctx.send(f"This bot is currently private. Please contact {Settings.author} if interested in using it.")
+        if await is_bot_admin(ctx.author):
+            await ctx.send(f"<{Settings.invite_url}>")
+        else:
+            await ctx.send(f"This bot is currently private. Please contact {Settings.author} if interested in using it.")
+
+    @commands.command(aliases=['🏓'])
+    async def ping(self, ctx):
+        """Pong!"""
+        t0 = time.monotonic()
+        append = '🏓' if '🏓' in ctx.invoked_with else (PINGBOI if self.bot.user in ctx.message.mentions else '')
+        msg = await ctx.send("Pong! " + append)
+        dt = time.monotonic() - t0
+        await msg.edit(content=msg.content+f"\n⌛ WS: {self.bot.latency*1000:.2f}ms\n⏱ API: {dt*1000:.2f}ms")
 
 
 def setup(bot):

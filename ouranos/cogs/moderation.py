@@ -458,13 +458,11 @@ class Moderation(Cog):
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
             # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
-                if await self.bot.confirm_action(ctx, f"{TICK_YELLOW} This user appears to have this guild's mute role, "
-                                                      f"but does not have any active mute infractions. "
-                                                      f"Would you like to create an infraction?"):
-                    await LogEvent('mute', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
-                    await ctx.send(OK_HAND)
-                else:
-                    raise OuranosCommandError("Canceled!")
+                await ctx.confirm_action(f"{TICK_YELLOW} This user appears to have this guild's mute role, "
+                                         f"but does not have any active mute infractions. "
+                                         f"Would you like to create an infraction?")
+                await LogEvent('mute', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
+                await ctx.send(OK_HAND)
 
         # otherwise, mute the user like normal
         else:
@@ -541,13 +539,11 @@ class Moderation(Cog):
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
             # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
-                if await self.bot.confirm_action(ctx, f"{TICK_YELLOW} This user appears to be banned from this guild, "
-                                                      f"but does not have any active ban infractions. "
-                                                      f"Would you like to create an infraction?"):
-                    await LogEvent('ban', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
-                    await ctx.send(OK_HAND)
-                else:
-                    raise OuranosCommandError("Canceled!")
+                ctx.confirm_action(f"{TICK_YELLOW} This user appears to be banned from this guild, "
+                                   f"but does not have any active ban infractions. "
+                                   f"Would you like to create an infraction?")
+                await LogEvent('ban', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
+                await ctx.send(OK_HAND)
 
         # we didn't seem to find anything weird, so let's just ban!
         else:
@@ -586,8 +582,7 @@ class Moderation(Cog):
 
     async def _do_removal(self, ctx, limit, check=None, channel=None, **kwargs):
         if limit >= 200:
-            if not await self.bot.confirm_action(ctx, f"This will delete up to {limit} messages. Are you sure? (y/n)"):
-                raise OuranosCommandError("Canceled!")
+            await ctx.confirm_action(f"This will delete up to {limit} messages. Are you sure? (y/n)")
         if limit < 1:
             raise OuranosCommandError("Not enough messages to search!")
             
@@ -604,13 +599,7 @@ class Moderation(Cog):
         s = 's'if count != 1 else ''
         response = f"{TICK_GREEN} Removed {count} message{s}."
         response += "```yaml\n" + '\n'.join((f"{a}: {n}" for a, n in authors.items())) + "\n```"
-        msg = await ctx.send(response)
-        await asyncio.sleep(10)
-        try:
-            await msg.delete()
-            await ctx.message.delete()
-        except discord.Forbidden:
-            pass
+        await ctx.send(response, delete_after=10)
 
     @commands.group(aliases=['rm', 'purge', 'clean'], invoke_without_command=True)
     @checks.server_mod()

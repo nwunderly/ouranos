@@ -1,6 +1,6 @@
-import discord
 import re
 import time
+import discord
 
 from discord.ext import commands
 from loguru import logger
@@ -9,12 +9,6 @@ from ouranos.bot import Ouranos
 from ouranos.utils import database as db
 from ouranos.utils.constants import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN
 from ouranos.utils.helpers import exact_timedelta
-
-
-infraction_cache = {}
-history_cache = {}
-last_case_id_cache = {}
-active_infraction_exists_cache = {}
 
 
 class LogEvent:
@@ -42,15 +36,16 @@ class SmallLogEvent:
         Ouranos.bot.dispatch('small_log', self)
 
 
-async def get_case_id(guild_id):
-    if guild_id in last_case_id_cache:
-        misc = last_case_id_cache[guild_id]
+async def get_case_id(guild_id, increment=True):
+    if guild_id in db.last_case_id_cache:
+        misc = db.last_case_id_cache[guild_id]
     else:
         misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
-    misc.last_case_id += 1
-    await misc.save()
+    if not increment:
+        misc.last_case_id += 1
+        await db.edit_record(misc)  # runs save() and ensures cache is updated
     infraction_id = misc.last_case_id
-    last_case_id_cache[guild_id] = misc
+    db.last_case_id_cache[guild_id] = misc
     return infraction_id
 
 
@@ -77,15 +72,21 @@ async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration
     history.__getattribute__(type).append(infraction_id)
     if active:
         history.active.append(infraction_id)
-    await history.save()
+    await db.edit_record(history)  # runs save() and ensures cache is updated
+    db.infraction_cache[guild_id, infraction_id] = infraction
+    db.history_cache[guild_id, user_id] = history
     return infraction
 
 
 async def get_infraction(guild_id, infraction_id):
+    if i := db.infraction_cache.get((guild_id, infraction_id)):
+        return i
     return await db.Infraction.get_or_none(guild_id=guild_id, infraction_id=infraction_id)
 
 
 async def get_history(guild_id, user_id):
+    if h := db.history_cache.get((guild_id, user_id)):
+        return h
     return await db.History.get_or_none(guild_id=guild_id, user_id=user_id)
 
 
@@ -160,11 +161,15 @@ async def edit_infraction_and_message(infraction, **kwargs):
 
 
 async def has_active_infraction(guild_id, user_id, type):
+    # if (exists := db.active_infraction_exists_cache.get((guild_id, user_id))) is not None:
+    #     return exists
     history = await get_history(guild_id, user_id)
     if history:
         for i in getattr(history, type):
             if i in history.active:
+                # db.active_infraction_exists_cache[guild_id, user_id] = True
                 return True
+    # db.active_infraction_exists_cache[guild_id, user_id] = False
     return False
 
 

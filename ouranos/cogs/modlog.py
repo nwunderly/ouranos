@@ -357,7 +357,7 @@ class Modlog(Cog):
         for _list in [getattr(history, infraction.type), history.active]:
             if infraction_id in _list:
                 _list.remove(infraction_id)
-        await history.save()
+        await db.edit_record(history)  # runs save() and ensures cache is updated
         user = (await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id)) or infraction.user_id
         await ctx.send(f"{TICK_GREEN} Removed infraction #{infraction_id} ({infraction.type}) for user {user}.")
 
@@ -414,15 +414,15 @@ class Modlog(Cog):
         """Reset a user's infraction history.
         This does not delete any infractions, just cleans the references to them in their history.
         """
-        if await self.bot.confirm_action(ctx, f'Are you sure you want to wipe infraction history for {user}? '
-                                              f'This could result in currently-active infractions behaving unexpectedly.'):
-            try:
-                await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
-            except Exception as e:
-                raise UnexpectedError(f'{e.__class__.__name__}: {e}')
-            await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
-        else:
-            raise OuranosCommandError("Canceled!")
+        await ctx.confim_action(f'Are you sure you want to wipe infraction history for {user}? '
+                                f'This could result in currently-active infractions behaving unexpectedly.')
+        try:
+            await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
+            if (key := (ctx.guild.id, user.id)) in db.history_cache:
+                db.history_cache.pop(key)
+        except Exception as e:
+            raise UnexpectedError(f'{e.__class__.__name__}: {e}')
+        await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
 
     @history.command(name='all')
     @server_mod()

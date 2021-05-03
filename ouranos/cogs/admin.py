@@ -9,13 +9,14 @@ import inspect
 
 from discord.ext import commands
 from contextlib import redirect_stdout
+from typing import Optional
 from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
-from ouranos.utils.converters import A_OR_B, Guild
+from ouranos.utils.converters import A_OR_B, UserID, Duration, Reason
 from ouranos.utils.constants import OK_HAND
 from ouranos.utils.errors import InfractionNotFound
 

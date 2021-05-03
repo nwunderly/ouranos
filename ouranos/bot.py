@@ -13,7 +13,8 @@ from loguru import logger
 
 from ouranos.settings import Settings
 from ouranos.utils import database as db
-from ouranos.utils.constants import TICK_RED
+from ouranos.utils.context import Context
+from ouranos.utils.constants import TICK_RED, PINGBOI
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError
 
 
@@ -160,7 +161,7 @@ class Ouranos(commands.AutoShardedBot):
             if message.channel.permissions_for(message.guild.me).send_messages:
                 p = await self.prefix(message)
                 await message.channel.send(
-                    f"<:pingboi:800873872387211275> **My prefix here is** `{p}`\n"
+                    f"{PINGBOI} **My prefix here is** `{p}`\n"
                     f"(Use `{p}help` or `{p}about` for more info!)")
 
     async def prefix(self, message):
@@ -206,6 +207,9 @@ class Ouranos(commands.AutoShardedBot):
                     f"guild {ctx.guild.id if ctx.guild else None}, "
                     f"channel {ctx.channel.id}, "
                     f"message {ctx.message.id}")
+
+    async def get_context(self, message, *, cls=Context):
+        return await super().get_context(message, cls=cls)
 
     @tasks.loop(minutes=20)
     async def update_presence(self):
@@ -270,14 +274,6 @@ class Ouranos(commands.AutoShardedBot):
         if not members:
             return None
         return members[0]
-
-    async def confirm_action(self, ctx, message, timeout=5):
-        await ctx.channel.send(message)
-        try:
-            msg = await self.wait_for('message', check=lambda m: m.author == ctx.author, timeout=timeout)
-        except asyncio.TimeoutError:
-            msg = None
-        return msg and msg.content.lower() in ('1', 'true', 'yes', 'y')
 
     def load_aloc(self):
         try:

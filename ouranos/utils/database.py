@@ -8,10 +8,25 @@ from loguru import logger
 from ouranos.settings import Settings
 
 
+config_cache = {}  # {guild_id: Config}
+infraction_cache = {}  # {(guild_id, infraction_id): Infraction}
+history_cache = {}  # {(guild_id, user_id): History}
+last_case_id_cache = {}  # {guild_id: MiscData}
+active_infraction_exists_cache = {}  # {(guild_id, user_id): bool}
+
+
 async def edit_record(record, **kwargs):
     for key, value in kwargs.items():
         record.__setattr__(key, value)
     await record.save()
+    if isinstance(record, Config):
+        config_cache[record.guild_id] = record
+    elif isinstance(record, Infraction):
+        infraction_cache[record.guild_id, record.infraction_id] = record
+    elif isinstance(record, History):
+        history_cache[record.guild_id, record.user_id] = record
+    elif isinstance(record, MiscData):
+        last_case_id_cache[record.guild_id] = record.last_case_id
     return record
 
 
@@ -23,9 +38,6 @@ class Config(Model):
     admin_role_id = fields.BigIntField(default=0)
     mod_role_id = fields.BigIntField(default=0)
     dm_on_infraction = fields.BooleanField(default=True)
-
-    
-config_cache = {}
 
 
 async def get_config(guild):
