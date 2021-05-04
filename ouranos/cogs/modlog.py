@@ -106,13 +106,13 @@ class Modlog(Cog):
         t = default_sleep
 
         while True:
-            found, missed = await self._audit_log_fetcher(int(t))
-            t = default_sleep + 2*(found > 0) + found + 5*(missed > 0)
+            found, missed = await self._audit_log_fetcher()
+            t = default_sleep + 2*(found > 0) + found + 2*(missed > 0)
             if t != default_sleep:
                 logger.info(f"sleeping {t} seconds")
             await asyncio.sleep(t)
 
-    async def _audit_log_fetcher(self, limit=1):
+    async def _audit_log_fetcher(self):
         to_check = defaultdict(dict)
         t0 = time.monotonic()
 
@@ -129,7 +129,7 @@ class Modlog(Cog):
         for guild_id, infractions in to_check.items():
             guild = self.bot.get_guild(guild_id)
 
-            async for entry in guild.audit_logs(limit=limit+2*len(infractions)):
+            async for entry in guild.audit_logs(limit=5+2*len(infractions)):
                 key = (entry.action, entry.target.id)
                 if key in infractions and infractions[key](entry):  # we found it, dispatch the event
                     found += 1
@@ -148,10 +148,14 @@ class Modlog(Cog):
 
         for guild_id, infractions in to_check.items():
             for action_type, user_id in infractions:
-                check = infractions[action_type, user_id]
-                key = (action_type, guild_id, user_id, check)
-                logger.debug(f"putting missed infraction {key[:3]} back in fetch queue.")
-                self._audit_log_queue.append(key)
+                if action_type == KICK:
+                    discarded += 1
+                    infractions.pop((action_type, user_id))
+                else:
+                    check = infractions[action_type, user_id]
+                    key = (action_type, guild_id, user_id, check)
+                    logger.debug(f"putting missed infraction {key[:3]} back in fetch queue.")
+                    self._audit_log_queue.append(key)
 
         missed = sum(len(infs) for infs in to_check.values())
         dt = time.monotonic() - t0
@@ -173,9 +177,9 @@ class Modlog(Cog):
             )
             return entry.the_real_entry
         except asyncio.TimeoutError:
-            if action_type != KICK:
-                logger.error(f"timed out for {tuple(str(i) for i in inf[:3])}.")
-            return None
+            # if action_type != KICK:
+            raise Exception(f"timed out for {tuple(str(i) for i in inf[:3])}.")
+            # return None
 
     async def mass_action_filter(self, type, guild, user, mod):
         # TODO
@@ -188,7 +192,7 @@ class Modlog(Cog):
 
         logger.debug("ban detected")
         moderator = reason = note = duration = None
-        # await asyncio.sleep(2)
+        await asyncio.sleep(2)
 
         entry = await self.fetch_audit_log_entry(BAN, guild, user)
         if entry:
@@ -213,7 +217,7 @@ class Modlog(Cog):
             return
 
         logger.debug("possible kick detected")
-        # await asyncio.sleep(2)
+        await asyncio.sleep(2)
 
         entry = await self.fetch_audit_log_entry(KICK, guild, member)
 
@@ -249,7 +253,7 @@ class Modlog(Cog):
 
         member = before
         mute_role = guild.get_role(config.mute_role_id)
-        # await asyncio.sleep(2)
+        await asyncio.sleep(2)
 
         if mute_role in before.roles and mute_role not in after.roles:  # unmute
             logger.debug("detected unmute")
@@ -304,7 +308,7 @@ class Modlog(Cog):
             return
 
         logger.debug("unban detected")
-        # await asyncio.sleep(2)
+        await asyncio.sleep(2)
 
         entry = await self.fetch_audit_log_entry(UNBAN, guild, user)
 

@@ -86,5 +86,6 @@ def init(lvl):
     logger.add(
         cache_log,
         diagnose=False,
+        level='DEBUG',
         filter=ouranos_or_main,
     )
