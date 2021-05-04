@@ -1,3 +1,4 @@
+import asyncio
 import re
 import time
 import discord
@@ -36,17 +37,35 @@ class SmallLogEvent:
         Ouranos.bot.dispatch('small_log', self)
 
 
+class MassActionLogEvent:
+    def __init__(self, type, guild, users, infraction_id_range, mod, reason, note, duration):
+        self.type = type
+        self.guild = guild
+        self.users = users
+        self.infraction_id_range = infraction_id_range
+        self.mod = mod
+        self.reason = reason
+        self.note = note
+        self.duration = duration
+
+    async def dispatch(self):
+        Ouranos.bot.dispatch('mass_action_log', self)
+
+
+case_id_lock = asyncio.Lock()
+
+
 async def get_case_id(guild_id, increment=True):
-    if guild_id in db.last_case_id_cache:
-        misc = db.last_case_id_cache[guild_id]
-    else:
-        misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
-    if increment:
-        misc.last_case_id += 1
-        await db.edit_record(misc)  # runs save() and ensures cache is updated
-    infraction_id = misc.last_case_id
-    db.last_case_id_cache[guild_id] = misc
-    return infraction_id
+    async with case_id_lock:
+        if guild_id in db.last_case_id_cache:
+            misc = db.last_case_id_cache[guild_id]
+        else:
+            misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
+        infraction_id = misc.last_case_id
+        if increment:
+            misc.last_case_id += 1
+            await db.edit_record(misc)  # runs save() and ensures cache is updated
+        return infraction_id
 
 
 async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration, active):
@@ -174,6 +193,7 @@ async def has_active_infraction(guild_id, user_id, type):
 
 
 async def deactivate_infractions(guild_id, user_id, type):
+    now = time.time()
     history = await get_history(guild_id, user_id)
     if not history:
         return
@@ -181,7 +201,7 @@ async def deactivate_infractions(guild_id, user_id, type):
     count = 0
     for infraction_id in history.active:
         infraction = await get_infraction(guild_id, infraction_id)
-        if infraction.type == type:
+        if infraction.type == type and infraction.created_at < now:
             active.remove(infraction_id)
             await db.edit_record(history, active=active)
             await db.edit_record(infraction, active=False)

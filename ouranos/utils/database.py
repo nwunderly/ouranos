@@ -8,9 +8,6 @@ from loguru import logger
 from ouranos.settings import Settings
 
 
-# database schema heavily inspired by GearBot: https://github.com/gearbot/GearBot
-
-
 config_cache = {}  # {guild_id: Config}
 infraction_cache = {}  # {(guild_id, infraction_id): Infraction}
 history_cache = {}  # {(guild_id, user_id): History}
@@ -29,7 +26,7 @@ async def edit_record(record, **kwargs):
     elif isinstance(record, History):
         history_cache[record.guild_id, record.user_id] = record
     elif isinstance(record, MiscData):
-        last_case_id_cache[record.guild_id] = record.last_case_id
+        last_case_id_cache[record.guild_id] = record
     return record
 
 
@@ -70,6 +67,9 @@ async def update_config(*, guild=None, config=None, **kwargs):
     await config.save()
     config_cache[guild_id] = config
     return config
+
+
+# database schema heavily inspired by GearBot: https://github.com/gearbot/GearBot
 
 
 class Infraction(Model):

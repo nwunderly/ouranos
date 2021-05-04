@@ -57,6 +57,11 @@ async def try_send(user, message):
         return False
 
 
+class Parser(argparse.ArgumentParser):
+    def error(self, message):
+        raise OuranosCommandError(message.capitalize())
+
+
 class Moderation(Cog):
     """Moderation commands."""
     def __init__(self, bot):
@@ -711,7 +716,7 @@ class Moderation(Cog):
         """
         # custom purge command repurposed from R.Danny's mod cog: https://github.com/gearbot/GearBot
 
-        parser = argparse.ArgumentParser(exit_on_error=False, add_help=False, allow_abbrev=False)
+        parser = Parser(add_help=False, allow_abbrev=False)
         parser.add_argument('--user', nargs='+')
         parser.add_argument('--contains', nargs='+')
         parser.add_argument('--starts', nargs='+')
