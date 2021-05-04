@@ -61,7 +61,7 @@ async def get_case_id(guild_id, increment=True):
             misc = db.last_case_id_cache[guild_id]
         else:
             misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
-        infraction_id = misc.last_case_id
+        infraction_id = misc.last_case_id + 1
         if increment:
             misc.last_case_id += 1
             await db.edit_record(misc)  # runs save() and ensures cache is updated
