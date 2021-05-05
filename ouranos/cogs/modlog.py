@@ -130,6 +130,8 @@ class Modlog(Cog):
             guild = self.bot.get_guild(guild_id)
 
             async for entry in guild.audit_logs(limit=5+2*len(infractions)):
+                if entry.action not in [KICK, MUTE, BAN, UNBAN]:
+                    continue
                 key = (entry.action, entry.target.id)
                 if key in infractions and infractions[key](entry):  # we found it, dispatch the event
                     found += 1
