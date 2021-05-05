@@ -147,7 +147,7 @@ class Modlog(Cog):
                     break
 
         for guild_id, infractions in to_check.items():
-            for action_type, user_id in infractions:
+            for action_type, user_id in infractions.copy():
                 if action_type == KICK:
                     discarded += 1
                     infractions.pop((action_type, user_id))
