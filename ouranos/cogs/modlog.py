@@ -177,9 +177,9 @@ class Modlog(Cog):
             )
             return entry.the_real_entry
         except asyncio.TimeoutError:
-            # if action_type != KICK:
-            raise Exception(f"timed out for {tuple(str(i) for i in inf[:3])}.")
-            # return None
+            if action_type != KICK:
+                raise Exception(f"timed out for {tuple(str(i) for i in inf[:3])}.") from None
+            return None
 
     async def mass_action_filter(self, type, guild, user, mod):
         # TODO
