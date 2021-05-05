@@ -233,7 +233,7 @@ class Modlog(Cog):
                 logger.debug("it's a ban. ignoring")
                 return
 
-            logger.debug("entry found, it's a ban. logging")
+            logger.debug("entry found, it's a kick. logging")
             moderator = entry.user
             duration, reason = self.maybe_duration_from_audit_reason(entry.reason)
             reason, note = self.maybe_note_from_audit_reason(reason)
