@@ -260,7 +260,7 @@ class Modlog(Cog):
 
             entry = await self.fetch_audit_log_entry(
                 UNMUTE, guild, member,
-                check=lambda e: mute_role in e.after.roles and mute_role not in e.before.roles)
+                check=lambda e: mute_role in e.before.roles and mute_role not in e.after.roles)
 
             if entry.id == self._last_audit_id_cache.get(guild.id):
                 return
@@ -283,7 +283,7 @@ class Modlog(Cog):
 
             entry = await self.fetch_audit_log_entry(
                 MUTE, guild, member,
-                check=lambda e: mute_role in e.before.roles and mute_role not in e.after.roles)
+                check=lambda e: mute_role in e.after.roles and mute_role not in e.before.roles)
 
             if entry.id == self._last_audit_id_cache.get(guild.id):
                 return
