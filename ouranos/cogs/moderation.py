@@ -16,9 +16,9 @@ from ouranos.cog import Cog
 from ouranos.utils import checks
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
-from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent
-from ouranos.utils.constants import TICK_RED, TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP
-from ouranos.utils.converters import Duration, UserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
+from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent, MassActionLogEvent
+from ouranos.utils.constants import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, EMOJI_MASSBAN
+from ouranos.utils.converters import Duration, UserID, MBanUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
 from ouranos.utils.helpers import exact_timedelta
 from ouranos.utils.errors import OuranosCommandError, ModerationError, UserNotInGuild, NotConfigured, \
     BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
@@ -266,7 +266,7 @@ class Moderation(Cog):
         return delivered
 
     async def _do_ban(self, guild, user, mod, reason, note, audit_reason, duration=None):
-        """Lifts a user's ban and dispatches the event to the modlog."""
+        """Bans a user and dispatches the event to the modlog."""
         config = await db.get_config(guild)
         member = await self.bot.get_or_fetch_member(guild, user.id)
 
@@ -333,6 +333,64 @@ class Moderation(Cog):
         await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
         return infraction.infraction_id
 
+    async def _do_mass_ban(self, ctx, users, mod, reason, note, audit_reason):
+        """Bans a set of users and dispatches the event to the modlog."""
+        guild = ctx.guild
+        users = set(users)
+        total = len(users)
+
+        if total <= 1:
+            raise OuranosCommandError("Not enough users to ban.")
+
+        await ctx.confirm_action(f"{TICK_YELLOW} Are you sure you would like to ban {total} users?")
+
+        # filter out already-banned users
+        ban_list = set(b.user.id for b in await guild.bans())
+        bannable_users = [u for u in users if u.id not in ban_list]
+        already_banned = total - len(bannable_users)
+
+        # check to make sure we can actually do this
+        for user in users:
+            member = await self.bot.get_or_fetch_member(guild, user.id)
+
+            if not guild.me.guild_permissions.ban_members:
+                raise BotMissingPermission('Ban Members')
+            if member:
+                if not guild.me.top_role > member.top_role:
+                    raise BotRoleHierarchyError
+                if await checks.is_server_mod(member):
+                    raise ModActionOnMod
+
+        m = await ctx.send("Banning...")
+
+        # do the actual bans now
+        success = []
+        not_found = 0
+        for user in bannable_users:
+            try:
+                await guild.ban(user, reason=audit_reason, delete_message_days=0)
+                success.append(user)
+            except discord.NotFound:
+                not_found += 1
+
+        # dispatch the modlog event
+        if success:
+            await MassActionLogEvent('ban', guild, success, mod, reason, note).dispatch()
+
+        # format response message
+        def _s(i):
+            return "s" if i != 1 else ""
+        content = f"{EMOJI_MASSBAN} Banned {len(success)}/{total} users."
+        extra_lines = [
+            f"{already_banned} user{_s(already_banned)} already banned" if already_banned else "",
+            f"{not_found} user{_s(not_found)} not found" if not_found else ""
+        ]
+        extra = ", ".join(e for e in extra_lines if e)
+        if extra:
+            content += " *" + extra + ".*"
+
+        await m.edit(content=content)
+
     async def _do_unban(self, guild, user, mod, reason, note, audit_reason):
         """Removes a ban from a user and dispatches the event to the modlog."""
         # check to make sure we can actually do this
@@ -373,7 +431,6 @@ class Moderation(Cog):
 
         return can_mute
 
-
     async def _do_auto_unmute(self, guild, user_id, infraction):
         """Removes a mute from a user without dispatching the modlog event.
         Used for handling expired mutes without creating an infraction.
@@ -393,8 +450,8 @@ class Moderation(Cog):
             # remove the role
             await member.remove_roles(role, reason=f'Mute expired (#{infraction_id})')
 
-            # dispatch the modlog event
-            await SmallLogEvent('mute-expire', guild, member, infraction_id).dispatch()
+        # dispatch the modlog event
+        await SmallLogEvent('mute-expire', guild, member or user_id, infraction_id).dispatch()
 
         # even if we don't have any permissions, mark any mutes for this user as inactive
         # so we don't keep trying to unmute.
@@ -414,16 +471,22 @@ class Moderation(Cog):
 
         if can_unban:
             # remove the role
-            ban = await guild.fetch_ban(discord.Object(user_id))
-            await guild.unban(ban.user, reason=f'Ban expired (#{infraction_id})')
+            try:
+                ban = await guild.fetch_ban(discord.Object(user_id))
+                user = ban.user
+                await guild.unban(user, reason=f'Ban expired (#{infraction_id})')
+            except discord.NotFound:
+                user = None
+        else:
+            user = None
 
-            # dispatch the modlog event
-            await SmallLogEvent('ban-expire', guild, ban.user, infraction_id).dispatch()
+        # dispatch the modlog event
+        await SmallLogEvent('ban-expire', guild, user or user_id, infraction_id).dispatch()
 
         # even if we don't have any permissions, mark any bans for this user as inactive
         # so we don't keep trying to unban.
         await self.bot.run_in_background(
-            modlog.deactivate_infractions(guild.id, ban.user.id, 'ban'))
+            modlog.deactivate_infractions(guild.id, user_id, 'ban'))
 
         return can_unban
 
@@ -546,9 +609,9 @@ class Moderation(Cog):
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
             # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
-                ctx.confirm_action(f"{TICK_YELLOW} This user appears to be banned from this guild, "
-                                   f"but does not have any active ban infractions. "
-                                   f"Would you like to create an infraction?")
+                await ctx.confirm_action(f"{TICK_YELLOW} This user appears to be banned from this guild, "
+                                         f"but does not have any active ban infractions. "
+                                         f"Would you like to create an infraction?")
                 await LogEvent('ban', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
                 await ctx.send(OK_HAND)
 
@@ -558,6 +621,29 @@ class Moderation(Cog):
                 guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
             banned = 'Forcebanned' if force else 'Banned'
             await ctx.send(f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}")
+
+    @commands.group(aliases=['mban'], invoke_without_command=True)
+    @checks.server_admin()
+    async def massban(self, ctx, users: commands.Greedy[MBanUserID], *, reason: Reason = None):
+        """Bans a set of users from the server. User IDs or mentions must be provided.
+
+        Users are not sent a DM notification, and this action is logged in a single message."""
+        reason, note, audit_reason = reason or (None, None, None)
+        audit_reason = audit_reason or Reason.format_reason(ctx)
+        await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
+
+    @massban.command(name='file')
+    @checks.server_admin()
+    async def mban_file(self, ctx, *, reason: Reason = None):
+        reason, note, audit_reason = reason or (None, None, None)
+        audit_reason = audit_reason or Reason.format_reason(ctx)
+        try:
+            users = [discord.Object(int(i)) for i in (await ctx.message.attachments[0].read()).decode().split()]
+        except IndexError:
+            raise OuranosCommandError("You need to attach a file to use this command!")
+        except (TypeError, ValueError):
+            raise OuranosCommandError("Invalid file type.")
+        await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
 
     @commands.command()
     @checks.server_mod()
@@ -605,7 +691,8 @@ class Moderation(Cog):
 
         s = 's'if count != 1 else ''
         response = f"{TICK_GREEN} Removed {count} message{s}."
-        response += "```yaml\n" + '\n'.join((f"{a}: {n}" for a, n in authors.items())) + "\n```"
+        if count:
+            response += "```yaml\n" + '\n'.join((f"{a}: {n}" for a, n in authors.items())) + "\n```"
         await ctx.send(response, delete_after=10)
 
     @commands.group(aliases=['rm', 'purge', 'clean'], invoke_without_command=True)
@@ -643,6 +730,12 @@ class Moderation(Cog):
     async def rm_embeds(self, ctx, limit: int):
         """Remove messages with embeds."""
         await self._do_removal(ctx, limit=limit, check=lambda m: len(m.embeds) > 0)
+
+    @remove.command(name='images', aliases=['image', 'img'])
+    @checks.server_mod()
+    async def rm_images(self, ctx, limit: int):
+        """Remove messages with attachments or embeds."""
+        await self._do_removal(ctx, limit=limit, check=lambda e: len(e.attachments) or len(e.embeds))
 
     @remove.command(name='links', aliases=['link', 'url', 'urls'])
     @checks.server_mod()

@@ -8,7 +8,7 @@ from loguru import logger
 
 from ouranos.bot import Ouranos
 from ouranos.utils import database as db
-from ouranos.utils.constants import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN
+from ouranos.utils.constants import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN
 from ouranos.utils.helpers import exact_timedelta
 
 
@@ -38,15 +38,13 @@ class SmallLogEvent:
 
 
 class MassActionLogEvent:
-    def __init__(self, type, guild, users, infraction_id_range, mod, reason, note, duration):
+    def __init__(self, type, guild, users, mod, reason, note):
         self.type = type
         self.guild = guild
         self.users = users
-        self.infraction_id_range = infraction_id_range
         self.mod = mod
         self.reason = reason
         self.note = note
-        self.duration = duration
 
     async def dispatch(self):
         Ouranos.bot.dispatch('mass_action_log', self)
@@ -56,20 +54,21 @@ case_id_lock = asyncio.Lock()
 
 
 async def get_case_id(guild_id, increment=True):
-    async with case_id_lock:
-        if guild_id in db.last_case_id_cache:
-            misc = db.last_case_id_cache[guild_id]
-        else:
-            misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
-        infraction_id = misc.last_case_id + 1
-        if increment:
-            misc.last_case_id += 1
-            await db.edit_record(misc)  # runs save() and ensures cache is updated
-        return infraction_id
+    if guild_id in db.last_case_id_cache:
+        misc = db.last_case_id_cache[guild_id]
+    else:
+        misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
+    infraction_id = misc.last_case_id + 1
+    if increment:
+        misc.last_case_id += 1
+        await db.edit_record(misc)  # runs save() and ensures cache is updated
+    return infraction_id
 
 
-async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration, active):
-    infraction_id = await get_case_id(guild_id)
+async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration, active, infraction_id=None):
+    if not infraction_id:
+        async with case_id_lock:
+            infraction_id = await get_case_id(guild_id)
     created_at = time.time()
     ends_at = created_at + duration if duration else None
     infraction = await db.Infraction.create(
@@ -142,6 +141,22 @@ def format_edited_log_message(content, **kwargs):
 
 def format_small_log_message(emoji, title, user, infraction_id):
     return f"{emoji} {title} for user {user} (#{infraction_id})"
+
+
+def format_mass_action_log_message(emoji, title, infraction_id_range, user_count, mod, reason, note):
+    infraction_id_start, infraction_id_end = infraction_id_range
+    if infraction_id_start != infraction_id_end:
+        _range = f"#{infraction_id_start}-{infraction_id_end}"
+    else:
+        _range = f"#{infraction_id_start}"
+    lines = [
+        f"{emoji} **{title} ({_range})**\n",
+        f"**Users:** {user_count}\n",
+        f"**Moderator:** {mod}\n",
+        f"**Reason:** {reason}\n",
+        f"**Note:** {note}\n",
+    ]
+    return "".join(lines)
 
 
 async def new_log_message(guild, content):
@@ -274,3 +289,19 @@ async def log_ban_expire(guild, user, infraction_id):
 async def log_mute_persist(guild, user, infraction_id):
     content = format_small_log_message(EMOJI_MUTE, 'Mute persisted', user, infraction_id)
     await new_log_message(guild, content)
+
+
+async def log_massban(guild, users, mod, reason, note):
+    infractions = []
+    async with case_id_lock:  # ensure case ids are sequential
+        infraction_ids = [await get_case_id(guild.id) for _ in users]
+
+    for i, user in enumerate(users):
+        infraction = await new_infraction(guild.id, user.id, mod.id, 'ban', reason, note, None, True, infraction_ids[i])
+        infractions.append(infraction)
+
+    content = format_mass_action_log_message(EMOJI_MASSBAN, 'USERS MASSBANNED', (infraction_ids[0], infraction_ids[-1]), len(users), mod, reason, note)
+    message = await new_log_message(guild, content)
+
+    for infraction in infractions:
+        await db.edit_record(infraction, message_id=message.id)

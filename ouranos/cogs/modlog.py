@@ -2,7 +2,7 @@ import asyncio
 import time
 import discord
 
-from collections import defaultdict, deque, namedtuple
+from collections import defaultdict, deque
 from discord.ext import commands, tasks
 from loguru import logger
 
@@ -35,10 +35,9 @@ SMALL_LOGS = {
 }
 
 
-# TODO
-# MASS_ACTION_LOGS = {
-#     'massban': modlog.log_massban,
-# }
+MASS_ACTION_LOGS = {
+    'ban': modlog.log_massban,
+}
 
 
 MUTE = UNMUTE = discord.AuditLogAction.member_role_update
@@ -103,11 +102,12 @@ class Modlog(Cog):
         await self.bot.wait_until_ready()
         logger.info("starting audit log fetcher loop")
         default_sleep = 1.5
-        t = default_sleep
+        last_run = False
 
         while True:
             found, missed = await self._audit_log_fetcher()
-            t = default_sleep + 2*(found > 0) + found + 2*(missed > 0)
+            t = default_sleep + 2*(found > 0)*last_run + int(found/30) + 5*(missed > 0)
+            last_run = bool(found + missed)
             if t != default_sleep:
                 logger.info(f"sleeping {t} seconds")
             await asyncio.sleep(t)
@@ -153,6 +153,7 @@ class Modlog(Cog):
                 if action_type == KICK:
                     discarded += 1
                     infractions.pop((action_type, user_id))
+                    self.bot.dispatch(f'fetched_audit_log_entry_{guild_id}', FetchedAuditLogEntry(guild_id, (action_type, user_id), None))
                 else:
                     check = infractions[action_type, user_id]
                     key = (action_type, guild_id, user_id, check)
@@ -345,9 +346,8 @@ class Modlog(Cog):
     async def on_mass_action_log(self, log):
         if not await self.guild_has_modlog_config(log.guild):
             return
-        # TODO
-        # if isinstance(log, MassActionLogEvent):
-        #     await MASS_ACTION_LOGS[log.type](log.guild, log.users, log.infraction_id_range)
+        if isinstance(log, MassActionLogEvent):
+            await MASS_ACTION_LOGS[log.type](log.guild, log.users, log.mod, log.reason, log.note)
 
     async def _get_modlog_channel(self, guild):
         config = await db.get_config(guild)
@@ -373,7 +373,7 @@ class Modlog(Cog):
                 pass
         raise ModlogMessageNotFound(infraction_id, ctx.prefix)
 
-    @commands.group(aliases=['i', 'case'], invoke_without_command=True)
+    @commands.group(aliases=['case'], invoke_without_command=True)
     @server_mod()
     async def infraction(self, ctx, infraction_id: int):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""

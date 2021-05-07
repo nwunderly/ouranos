@@ -51,6 +51,7 @@ def init(lvl):
     logger.add(
         sys.stdout,
         diagnose=debug,
+        level=lvl
     )
 
     # discord log file

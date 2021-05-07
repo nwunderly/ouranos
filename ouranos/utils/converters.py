@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
-from ouranos.utils.errors import NotConfigured, BotMissingPermission, BotRoleHierarchyError, ModActionOnMod
+from ouranos.utils.errors import NotConfigured, BotMissingPermission
 
 
 class FetchedUser(commands.Converter):
@@ -79,6 +79,23 @@ class UserID(commands.Converter):
                     # hackban case
                     return type('_Hackban', (), {'id': member_id, '__str__': lambda s: f'User ID {s.id}'})()
         return m
+
+
+userid_pattern = re.compile(r"<@!?(\d+)>")
+
+
+class MBanUserID(commands.Converter):
+    async def convert(self, ctx, argument):
+        try:
+            match = userid_pattern.match(argument)
+            if match:
+                member_id = int(match.group(1))
+            else:
+                member_id = int(argument, base=10)
+        except ValueError:
+            raise commands.BadArgument(f"{argument} is not a valid user or user ID.") from None
+        else:
+            return discord.Object(member_id)
 
 
 class MutedUser(commands.Converter):

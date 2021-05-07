@@ -9,16 +9,12 @@ import inspect
 
 from discord.ext import commands
 from contextlib import redirect_stdout
-from typing import Optional
 from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.utils import database as db
-from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
-from ouranos.utils.converters import A_OR_B, UserID, Duration, Reason
-from ouranos.utils.constants import OK_HAND
-from ouranos.utils.errors import InfractionNotFound
+from ouranos.utils.converters import A_OR_B
 
 
 class AddOrRemove(A_OR_B):
@@ -74,8 +70,8 @@ class Admin(Cog):
         try:
             misc = await db.MiscData.get_or_none(guild_id=guild_id)
             if misc:
-                if guild_id in modlog.last_case_id_cache:
-                    modlog.last_case_id_cache.pop(guild_id)
+                if guild_id in db.last_case_id_cache:
+                    db.last_case_id_cache.pop(guild_id)
                 misc.last_case_id = 0
                 await misc.save()
                 result_3 = True
