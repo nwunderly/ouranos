@@ -53,22 +53,29 @@ class MassActionLogEvent:
 case_id_lock = asyncio.Lock()
 
 
-async def get_case_id(guild_id, increment=True):
-    if guild_id in db.last_case_id_cache:
-        misc = db.last_case_id_cache[guild_id]
-    else:
-        misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
-    infraction_id = misc.last_case_id + 1
-    if increment:
-        misc.last_case_id += 1
-        await db.edit_record(misc)  # runs save() and ensures cache is updated
-    return infraction_id
+async def get_case_id(guild_id, count=1, increment=True):
+    async with case_id_lock:
+        infraction_ids = []
+
+        if guild_id in db.last_case_id_cache:
+            misc = db.last_case_id_cache[guild_id]
+
+        else:
+            misc, _ = await db.MiscData.get_or_create(guild_id=guild_id)
+        for i in range(count):
+            infraction_id = misc.last_case_id + 1
+            if increment:
+                misc.last_case_id += 1
+            infraction_ids.append(infraction_id)
+
+        await db.edit_record(misc)
+
+    return infraction_ids[0] if count == 1 else infraction_ids
 
 
 async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration, active, infraction_id=None):
     if not infraction_id:
-        async with case_id_lock:
-            infraction_id = await get_case_id(guild_id)
+        infraction_id = await get_case_id(guild_id)
     created_at = time.time()
     ends_at = created_at + duration if duration else None
     infraction = await db.Infraction.create(
@@ -94,6 +101,28 @@ async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration
     db.infraction_cache[guild_id, infraction_id] = infraction
     db.history_cache[guild_id, user_id] = history
     return infraction
+
+
+async def new_infractions_bulk(guild_id, user_ids, mod_id, type, reason, note, duration, active, infraction_ids=None):
+    if not infraction_ids:
+        infraction_ids = await get_case_id(guild_id, count=len(user_ids))
+    created_at = time.time()
+    ends_at = created_at + duration if duration else None
+    await db.Infraction.bulk_create([
+        db.Infraction(
+            guild_id=guild_id,
+            infraction_id=infraction_ids[i],
+            user_id=user_id,
+            mod_id=mod_id,
+            type=type,
+            reason=reason,
+            note=note,
+            created_at=created_at,
+            ends_at=ends_at,
+            active=active,
+        ) for i, user_id in enumerate(user_ids)
+    ])
+    return infraction_ids
 
 
 async def get_infraction(guild_id, infraction_id):
@@ -292,16 +321,12 @@ async def log_mute_persist(guild, user, infraction_id):
 
 
 async def log_massban(guild, users, mod, reason, note):
-    infractions = []
-    async with case_id_lock:  # ensure case ids are sequential
-        infraction_ids = [await get_case_id(guild.id) for _ in users]
+    infraction_ids = await get_case_id(guild.id, count=len(users))
+    user_ids = [user.id for user in users]
 
-    for i, user in enumerate(users):
-        infraction = await new_infraction(guild.id, user.id, mod.id, 'ban', reason, note, None, True, infraction_ids[i])
-        infractions.append(infraction)
+    await new_infractions_bulk(guild.id, user_ids, mod.id, 'ban', reason, note, None, True, infraction_ids)
 
     content = format_mass_action_log_message(EMOJI_MASSBAN, 'USERS MASSBANNED', (infraction_ids[0], infraction_ids[-1]), len(users), mod, reason, note)
     message = await new_log_message(guild, content)
 
-    for infraction in infractions:
-        await db.edit_record(infraction, message_id=message.id)
+    await db.Infraction.filter(infraction_id__in=infraction_ids).update(message_id=message.id)

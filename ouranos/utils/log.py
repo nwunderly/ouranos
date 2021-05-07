@@ -51,7 +51,8 @@ def init(lvl):
     logger.add(
         sys.stdout,
         diagnose=debug,
-        level=lvl
+        level=lvl,
+        backtrace=False
     )
 
     # discord log file
@@ -60,6 +61,8 @@ def init(lvl):
         './logs/discord.log',
         rotation='00:00',
         retention='1 week',
+        backtrace=False,
+        diagnose=False,
         level='INFO',
         filter='discord',
     )
@@ -70,6 +73,7 @@ def init(lvl):
         rotation='00:00',
         retention='1 week',
         diagnose=debug,
+        backtrace=False,
         level=lvl,
         filter=ouranos_or_main,
     )
@@ -79,6 +83,7 @@ def init(lvl):
         logger.add(
             webhook_log,
             diagnose=False,
+            backtrace=False,
             level='ERROR',
             filter=ouranos_or_main,
         )
@@ -87,6 +92,7 @@ def init(lvl):
     logger.add(
         cache_log,
         diagnose=False,
+        backtrace=False,
         level='DEBUG',
         filter=ouranos_or_main,
     )

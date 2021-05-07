@@ -6,15 +6,20 @@ import traceback
 import textwrap
 import contextlib
 import inspect
+import time
 
 from discord.ext import commands
 from contextlib import redirect_stdout
 from loguru import logger
+from tortoise import Tortoise
 
+from ouranos import utils
 from ouranos.cog import Cog
 from ouranos.utils import database as db
+from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
 from ouranos.utils.converters import A_OR_B
+from ouranos.utils.helpers import TableFormatter
 
 
 class AddOrRemove(A_OR_B):
@@ -186,7 +191,8 @@ class Admin(Cog):
             'author': ctx.author,
             'guild': ctx.guild,
             'message': ctx.message,
-            '_ret': self._last_result
+            '_ret': self._last_result,
+            'conn': Tortoise.get_connection('default')
         }
 
         env.update(globals())
@@ -311,6 +317,49 @@ class Admin(Cog):
                 pass
             except discord.HTTPException as e:
                 await ctx.send(f'Unexpected error: `{e}`')
+
+    @commands.command()
+    @bot_admin()
+    async def sql(self, ctx, *, query: str):
+        """Run some SQL."""
+        # the imports are here because I imagine some people would want to use
+        # this cog as a base for their other cog, and since this one is kinda
+        # odd and unnecessary for most people, I will make it easy to remove
+        # for those people.
+        query = self.cleanup_code(query)
+        conn = Tortoise.get_connection('default')
+
+        is_multistatement = query.count(';') > 1
+        if is_multistatement:
+            # fetch does not support multiple statements
+            strategy = conn.execute_script
+        else:
+            strategy = conn.execute_query_dict
+
+        try:
+            start = time.perf_counter()
+            results = await strategy(query)
+            dt = (time.perf_counter() - start) * 1000.0
+        except Exception:
+            return await ctx.send(f'```py\n{traceback.format_exc()}\n```')
+
+        rows = len(results)
+        if is_multistatement or rows == 0:
+            return await ctx.send(f'`{dt:.2f}ms: {results}`')
+
+        headers = list(results[0].keys())
+        table = TableFormatter()
+        table.set_columns(headers)
+        table.add_rows(list(r.values()) for r in results)
+        render = table.render()
+
+        _s = 's' if rows != 1 else ''
+        fmt = f'```\n{render}\n```\n*Returned {rows} row{_s} in {dt:.2f}ms*'
+        if len(fmt) > 2000:
+            fp = io.BytesIO(fmt.encode('utf-8'))
+            await ctx.send('Too many results...', file=discord.File(fp, 'results.txt'))
+        else:
+            await ctx.send(fmt)
 
 
 def setup(bot):

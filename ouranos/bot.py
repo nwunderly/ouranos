@@ -191,11 +191,14 @@ class Ouranos(commands.AutoShardedBot):
     async def on_command_error(self, ctx, exception):
         if isinstance(exception, commands.CommandInvokeError):
             exc = exception.original or exception
-            logger.error(f"Error invoking command '{ctx.command.qualified_name}' / "
-                         f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
-                         f"channel {ctx.channel.id}, "
-                         f"message {ctx.message.id}\n"
-                         f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
+            try:
+                raise exc.with_traceback(exc.__traceback__)
+            except exc.__class__:
+                logger.exception(f"Error invoking command '{ctx.command.qualified_name}' / "
+                                 f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
+                                 f"channel {ctx.channel.id}, "
+                                 f"message {ctx.message.id}\n")
+                # f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
         try:
             await self._respond_to_error(ctx, exception)
         except discord.DiscordException:

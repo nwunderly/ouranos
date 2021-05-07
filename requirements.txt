@@ -2,5 +2,5 @@ discord.py>=1.7,<=2
 jishaku
 PyYaml>=5.4.1,<6
 psutil>=5.8,<6
-tortoise-orm[asyncpg]>=0.17.2,<1
+tortoise-orm[accel,asyncpg]>=0.17.2,<1
 loguru>=0.5.3,<1
