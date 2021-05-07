@@ -1,3 +1,5 @@
+import uvloop
+
 from argparse import ArgumentParser
 from loguru import logger
 
@@ -34,13 +36,15 @@ def start_bot(args):
 
 
 def main():
-
     parser = ArgumentParser(description="Launch Ouranos Discord bot.")
 
     parser.add_argument('--log')
     parser.add_argument('--dev', action='store_true')
 
     args = parser.parse_args()
+    
+    uvloop.install()
+
     start_bot(args)
 
 
