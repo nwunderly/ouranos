@@ -1,11 +1,17 @@
-import uvloop
-
 from argparse import ArgumentParser
 from loguru import logger
 
 from ouranos.bot import Ouranos
 from ouranos.utils import log
 from auth import TOKEN_DEV, TOKEN_PROD, DB_URL_DEV, DB_URL_PROD
+
+
+# set up uvloop if we can
+try:
+    import uvloop
+    uvloop.install()
+except:
+    pass
 
 
 def start_bot(args):
@@ -42,8 +48,6 @@ def main():
     parser.add_argument('--dev', action='store_true')
 
     args = parser.parse_args()
-    
-    uvloop.install()
 
     start_bot(args)
 

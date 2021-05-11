@@ -122,6 +122,16 @@ async def new_infractions_bulk(guild_id, user_ids, mod_id, type, reason, note, d
             active=active,
         ) for i, user_id in enumerate(user_ids)
     ])
+    for i, user_id in enumerate(user_ids):
+        infraction_id = infraction_ids[i]
+        history, _ = await db.History.get_or_create(
+            {'warn': [], 'mute': [], 'unmute': [], 'kick': [], 'ban': [], 'unban': [], 'active': []},
+            guild_id=guild_id, user_id=user_id
+        )
+        history.__getattribute__(type).append(infraction_id)
+        if active:
+            history.active.append(infraction_id)
+        await db.edit_record(history)  # runs save() and ensures cache is updated
     return infraction_ids
 
 
@@ -129,6 +139,17 @@ async def get_infraction(guild_id, infraction_id):
     if i := db.infraction_cache.get((guild_id, infraction_id)):
         return i
     return await db.Infraction.get_or_none(guild_id=guild_id, infraction_id=infraction_id)
+
+
+# TODO: implement get_infractions_bulk
+# async def get_infractions_bulk(guild_id, *infraction_ids):
+#     infractions = []
+#     remaining_ids = list(infraction_ids)
+#     for infraction_id in infraction_ids:
+#         if i := db.infraction_cache.get((guild_id, infraction_id)):
+#             infractions.append(i)
+#             remaining_ids.remove(i)
+#     async for infraction in db.Infraction.filter(infraction_id__in=remaining_ids)
 
 
 async def get_history(guild_id, user_id):
@@ -212,12 +233,12 @@ async def edit_infraction_and_message(infraction, **kwargs):
     else:
         edited_by = None
     k1, k2 = kwargs.copy(), kwargs.copy()
-    if 'duration' in kwargs and kwargs['duration']:
+    if 'duration' in kwargs:
         duration = kwargs.pop('duration')
-        ends_at = infraction.created_at + duration
-        k1['ends_at'] = ends_at
+        k1['ends_at'] = infraction.created_at + duration if duration else None
         edit = f"(edited by {edited_by})" if edited_by else ''
-        k2['duration'] = f"{exact_timedelta(duration)} {edit}"
+        d = exact_timedelta(duration) if duration else 'permanent'
+        k2['duration'] = f"{d} {edit}"
     i = await db.edit_record(infraction, **k1)
     m = await edit_log_message(infraction, **k2)
     return i, m

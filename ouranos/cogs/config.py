@@ -11,7 +11,7 @@ from ouranos.utils.checks import is_bot_admin, server_admin
 from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
 
 
-def config_exists(exists):
+def config_exists(exists=True):
     async def pred(ctx):
         if await is_bot_admin(ctx.author):
             return True

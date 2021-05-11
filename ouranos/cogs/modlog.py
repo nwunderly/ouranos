@@ -11,7 +11,7 @@ from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.converters import UserID, Duration
+from ouranos.utils.converters import UserID, Duration, InfractionID
 from ouranos.utils.constants import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 from ouranos.utils.helpers import approximate_timedelta, exact_timedelta, WEEK
@@ -185,7 +185,7 @@ class Modlog(Cog):
             return None
 
     async def mass_action_filter(self, type, guild, user, mod):
-        # TODO
+        # TODO: implement mass_action_filter (for automatically detecting mass actions by other bots)
         pass
 
     @Cog.listener()
@@ -375,14 +375,14 @@ class Modlog(Cog):
 
     @commands.group(aliases=['case'], invoke_without_command=True)
     @server_mod()
-    async def infraction(self, ctx, infraction_id: int):
+    async def infraction(self, ctx, infraction_id: InfractionID):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
         message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.jump_url)
 
     @infraction.command(name='view')
     @server_mod()
-    async def infraction_view(self, ctx, infraction_id: int):
+    async def infraction_view(self, ctx, infraction_id: InfractionID):
         """View the logged message for an infraction."""
         message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.content)
@@ -403,7 +403,7 @@ class Modlog(Cog):
 
     @infraction.command(name='json')
     @server_mod()
-    async def infraction_json(self, ctx, infraction_id: int):
+    async def infraction_json(self, ctx, infraction_id: InfractionID):
         """View the database entry for an infraction in JSON format."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         serialized = str(self.infraction_to_dict(infraction))
@@ -411,7 +411,7 @@ class Modlog(Cog):
 
     @infraction.command(name='info')
     @server_mod()
-    async def infraction_info(self, ctx, infraction_id: int):
+    async def infraction_info(self, ctx, infraction_id: InfractionID):
         """View the database entry for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         if infraction.ends_at:
@@ -438,7 +438,7 @@ class Modlog(Cog):
 
     @infraction.command(aliases=['edit-reason', 'editr'])
     @server_mod()
-    async def edit_reason(self, ctx, infraction_id: int, *, new_reason):
+    async def edit_reason(self, ctx, infraction_id: InfractionID, *, new_reason):
         """Edit the reason for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         new_reason = f"{new_reason} (edited by {ctx.author})"
@@ -447,7 +447,7 @@ class Modlog(Cog):
 
     @infraction.command(aliases=['edit-note', 'editn'])
     @server_mod()
-    async def edit_note(self, ctx, infraction_id: int, *, new_note):
+    async def edit_note(self, ctx, infraction_id: InfractionID, *, new_note):
         """Edit the note for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         new_note = f"{new_note} (edited by {ctx.author})"
@@ -456,7 +456,7 @@ class Modlog(Cog):
 
     @infraction.command(aliases=['edit-duration', 'editd'])
     @server_mod()
-    async def edit_duratiion(self, ctx, infraction_id: int, new_duration: Duration):
+    async def edit_duratiion(self, ctx, infraction_id: InfractionID, new_duration: Duration):
         """Edit the duration of a running infraction. Useful if the member is no longer in the server.
 
         Note: this only works for mute and ban infractions.
@@ -471,7 +471,7 @@ class Modlog(Cog):
 
     @infraction.command(name='delete')
     @server_admin()
-    async def infraction_delete(self, ctx, infraction_id: int):
+    async def infraction_delete(self, ctx, infraction_id: InfractionID):
         """Remove all references to an infraction from a user's history.
 
         This does not actually delete the infraction, so it can still be viewed and edited if the id is known.

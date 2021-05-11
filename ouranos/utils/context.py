@@ -7,6 +7,15 @@ from ouranos.utils.errors import ActionTimedOut, ActionCanceled
 
 class Context(commands.Context):
     """Custom context utilities."""
+    def __init__(self, **attrs):
+        self._force_action = False
+        super().__init__(**attrs)
+
+    def force_action(self, value=None):
+        if value is not None:
+            self._force_action = value
+        return self._force_action
+
     async def confirm_action(self, message, timeout=10):
         """returns if good to go, otherwise raises an error that will cancel the action and cause the bot to respond."""
         await self.channel.send(message)

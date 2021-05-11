@@ -25,7 +25,7 @@ class General(Cog):
         embed.description = self.bot.description
         embed.set_author(name="Ouranos")
         embed.add_field(name="Version", value=Settings.version)
-        embed.add_field(name="Library", value='discord.py')
+        embed.add_field(name="Library", value=f'discord.py v{discord.__version__}')
         embed.add_field(name="ALOC", value=f"{self.bot.aloc} lines")
 
         dt = datetime.datetime.now()-self.bot.started_at

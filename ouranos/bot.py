@@ -1,11 +1,9 @@
 import datetime
-import traceback
-
-import discord
 import random
 import signal
 import asyncio
 import json
+import discord
 
 from discord.ext import commands
 from discord.ext import tasks
@@ -111,7 +109,7 @@ class Ouranos(commands.AutoShardedBot):
         await super().close()
 
     async def load_cog(self, module, cog_name):
-        # TODO
+        # TODO implement async load_cog
         pass
 
     async def load_cogs(self, cog_names):
@@ -125,7 +123,7 @@ class Ouranos(commands.AutoShardedBot):
                 logger.exception(f"Failed to load extension {cog}.")
 
     async def unload_cogs(self):
-        # TODO
+        # TODO: implement async unload_cogs
         pass
 
     async def setup(self):
@@ -174,7 +172,7 @@ class Ouranos(commands.AutoShardedBot):
         if isinstance(error, commands.UserInputError):
             await ctx.send(f"{TICK_RED} {str(error).capitalize()}")
         elif isinstance(error, UnexpectedError):
-            await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error}\n```')
+            await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error}\n```')
         elif isinstance(error, OuranosCommandError):
             await ctx.send(f"{TICK_RED} {error}")
         elif isinstance(error, discord.Forbidden):

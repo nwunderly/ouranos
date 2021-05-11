@@ -889,6 +889,5 @@ class Moderation(Cog):
         await self._do_removal(ctx, args.search, predicate, ctx.channel, before=args.before, after=args.after)
 
 
-
 def setup(bot):
     bot.add_cog(Moderation(bot))
