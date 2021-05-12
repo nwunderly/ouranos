@@ -5,3 +5,4 @@ psutil>=5.8,<6
 tortoise-orm[asyncpg]>=0.17.2,<1
 loguru>=0.5.3,<1
 uvloop
+pygit2

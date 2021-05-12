@@ -2,16 +2,20 @@ import discord
 
 
 class Settings:
-    version = '1.3.2'
+    version = '1.3.3'
     prefix = "?"
     description = 'A simple and opinionated Discord moderation bot.'
     author = "nwunder#4003"
 
     embed_color = discord.Color(0x7289da)
 
-    logging_channel = 0000000000000000
     invite_permissions = 2110258423
 
+    bot_id = 831312219517091871
+    guild_id = 537043976562409482
+    owner_id = 204414611578028034
+
+    bot_av_url = 'https://cdn.discordapp.com/avatars/831312219517091871/524266a03aeb95ae122b4d1d2054fc17.webp'
     invite_url = 'https://discord.com/oauth2/authorize?client_id=831312219517091871&scope=bot+applications.commands&permissions=2110258423'
     support_url = 'https://discord.gg/d25W5PS'
     repo_url = 'https://github.com/nwunderly/ouranos'

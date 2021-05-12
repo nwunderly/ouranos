@@ -1,4 +1,6 @@
 import io
+import os
+
 import discord
 import asyncio
 import subprocess
@@ -13,13 +15,12 @@ from contextlib import redirect_stdout
 from loguru import logger
 from tortoise import Tortoise
 
-from ouranos import utils
 from ouranos.cog import Cog
 from ouranos.utils import database as db
-from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.checks import bot_admin
 from ouranos.utils.converters import A_OR_B
 from ouranos.utils.helpers import TableFormatter
+from ouranos.utils.stats import Stats
 
 
 class AddOrRemove(A_OR_B):
@@ -360,6 +361,30 @@ class Admin(Cog):
             await ctx.send('Too many results...', file=discord.File(fp, 'results.txt'))
         else:
             await ctx.send(fmt)
+
+    @commands.command()
+    @bot_admin()
+    async def ls(self, ctx, path='.'):
+        """List the contents of a directory."""
+        ls = os.listdir(path)
+        if path not in ('.', './'):
+            if path == '/':
+                path = ''
+            ls = [path+'/'+f for f in ls]
+        ls = '\n'.join(ls)
+        await ctx.send(f'```\n{ls}\n```')
+
+    @commands.command()
+    @bot_admin()
+    async def cat(self, ctx, file):
+        """Upload the contents of a text file to Discord."""
+        await ctx.send(file=discord.File(file))
+
+    @commands.command()
+    @bot_admin()
+    async def stats(self, ctx):
+        """Show bot stats."""
+        await ctx.send(Stats.show())
 
 
 def setup(bot):
