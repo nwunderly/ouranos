@@ -20,7 +20,6 @@ from ouranos.utils import database as db
 from ouranos.utils.checks import bot_admin
 from ouranos.utils.converters import A_OR_B
 from ouranos.utils.helpers import TableFormatter
-from ouranos.utils.stats import Stats
 
 
 class AddOrRemove(A_OR_B):
@@ -31,6 +30,10 @@ class AddOrRemove(A_OR_B):
 class ActiveOrInactive(A_OR_B):
     OPTION_A = 'active'
     OPTION_B = 'inactive'
+
+
+# credit to https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/admin.py
+# for eval, repl, sql commands
 
 
 class Admin(Cog):
@@ -323,10 +326,6 @@ class Admin(Cog):
     @bot_admin()
     async def sql(self, ctx, *, query: str):
         """Run some SQL."""
-        # the imports are here because I imagine some people would want to use
-        # this cog as a base for their other cog, and since this one is kinda
-        # odd and unnecessary for most people, I will make it easy to remove
-        # for those people.
         query = self.cleanup_code(query)
         conn = Tortoise.get_connection('default')
 
@@ -370,7 +369,7 @@ class Admin(Cog):
         if path not in ('.', './'):
             if path == '/':
                 path = ''
-            ls = [path+'/'+f for f in ls]
+            ls = [os.path.join(path, f) for f in ls]
         ls = '\n'.join(ls)
         await ctx.send(f'```\n{ls}\n```')
 
@@ -379,12 +378,6 @@ class Admin(Cog):
     async def cat(self, ctx, file):
         """Upload the contents of a text file to Discord."""
         await ctx.send(file=discord.File(file))
-
-    @commands.command()
-    @bot_admin()
-    async def stats(self, ctx):
-        """Show bot stats."""
-        await ctx.send(Stats.show())
 
 
 def setup(bot):

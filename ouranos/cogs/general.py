@@ -13,8 +13,12 @@ from ouranos.cog import Cog
 from ouranos.settings import Settings
 from ouranos.utils.helpers import approximate_timedelta
 from ouranos.utils.checks import is_bot_admin
-from ouranos.utils.constants import PINGBOI, BOTDEV, PYTHON, GIT
+from ouranos.utils.constants import PINGBOI, BOTDEV, PYTHON, GIT, CHART, STONKS, NOT_STONKS
 from ouranos.utils.stats import Stats
+
+
+# credit to https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/stats.py
+# for pygit2 code
 
 
 class General(Cog):
@@ -31,8 +35,16 @@ class General(Cog):
         Stats.on_command()
 
     @Cog.listener()
-    async def on_log(self, _):
-        Stats.on_log()
+    async def on_log(self, log):
+        Stats.on_log(log.guild.id)
+
+    @Cog.listener()
+    async def on_small_log(self, log):
+        Stats.on_log(log.guild.id)
+
+    @Cog.listener()
+    async def on_mass_action_log(self, log):
+        Stats.on_log(log.guild.id)
 
     def format_commit(self, commit):
         short, _, _ = commit.message.partition('\n')
@@ -42,7 +54,7 @@ class General(Cog):
 
         # [`hash`](url) message (offset)
         offset = approximate_timedelta(datetime.datetime.utcnow() - commit_time.astimezone(datetime.timezone.utc).replace(tzinfo=None))
-        return f'[`{short_sha2}`](https://github.com/nwunderly/ouranos/commit/{commit.hex}) {short} ({offset})'
+        return f'[`{short_sha2}`]({Settings.repo_url}/commit/{commit.hex}) {short} ({offset} ago)'
 
     def get_last_commits(self, count=3):
         repo = pygit2.Repository('.git')
@@ -95,6 +107,20 @@ class General(Cog):
         msg = await ctx.send("Pong! " + append)
         dt = time.monotonic() - t0
         await msg.edit(content=msg.content+f"\n⌛ WS: {self.bot.latency*1000:.2f}ms\n⏱ API: {dt*1000:.2f}ms")
+
+    @commands.command()
+    async def stats(self, ctx):
+        """Show some bot stats."""
+        uptime = datetime.datetime.now()-self.bot.started_at
+
+        def s(n):
+            return 's' if n != 1 else ''
+
+        await ctx.send(
+            f"In the {approximate_timedelta(uptime)} I have been online:\n"
+            f"{CHART} I have seen {(_m := Stats.messages_seen):,} message{s(_m)}.\n"
+            f"{STONKS} {(_c := Stats.commands_used):,} command{(_s := s(_c))} {'have' if _s else 'has'} been used.\n"
+            f"{NOT_STONKS} I have sent {(_l := Stats.logs_sent):,} modlog message{s(_l)} in {(_g := Stats.unique_guilds())} guild{s(_g)}.")
 
 
 def setup(bot):

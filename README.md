@@ -72,6 +72,7 @@ The bot's moderation features work exactly as you'd expect.
 - `?unban <user> [reason]` - Unbans a user. Manual unbans like this are treated as a modlog event (expired mutes aren't).
 
 Some additional behavior worth noting:
+- The mute/ban command, if the user is already muted/banned, will instead edit the duration of the infraction.
 - Manually-assigned mute roles are treated as a permanent mute, and logged as if the user had used a command.
 - Right-click kicks and bans are treated as a permanent ban, and logged as if a command had been used, including audit log reason.
 - The `reason` argument in mod commands is parsed such that `--` is treated as a separator,
@@ -80,3 +81,10 @@ Some additional behavior worth noting:
 For example, `?mute nwunder#4003 1h spamming -- spammed pictures of bulbasaur in #general` would (if dm-on-infraction is enabled in config) send a DM informing
 me that I was muted for "spamming", while other server moderators reading the modlog would be able to see in the `Note` section that I was spamming pictures of
 bulbasaur in general chat.
+
+
+## Credits
+
+In addition to Ouranos' modlog being heavily inspired by Pollr, a lot of ideas and code were drawn from
+[RoboDanny](https://github.com/Rapptz/RoboDanny) by Danny#0007 and [GearBot](https://github.com/gearbot/GearBot) by AEnterprise#4693.
+Particularly, the admin cog is built on top of Danny's code, and Ouranos' infraction database is heavily based on AEnterprise's design.

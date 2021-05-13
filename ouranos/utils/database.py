@@ -8,6 +8,9 @@ from loguru import logger
 from ouranos.settings import Settings
 
 
+# infraction database schema heavily inspired by GearBot: https://github.com/gearbot/GearBot
+
+
 config_cache = {}  # {guild_id: Config}
 infraction_cache = {}  # {(guild_id, infraction_id): Infraction}
 history_cache = {}  # {(guild_id, user_id): History}
@@ -67,9 +70,6 @@ async def update_config(*, guild=None, config=None, **kwargs):
     await config.save()
     config_cache[guild_id] = config
     return config
-
-
-# database schema heavily inspired by GearBot: https://github.com/gearbot/GearBot
 
 
 class Infraction(Model):
