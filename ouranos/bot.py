@@ -10,8 +10,9 @@ from discord.ext import tasks
 from loguru import logger
 
 from ouranos.settings import Settings
+from ouranos.dpy.command import HelpCommand
+from ouranos.dpy.context import Context
 from ouranos.utils import database as db
-from ouranos.utils.context import Context
 from ouranos.utils.constants import TICK_RED, PINGBOI
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError
 
@@ -39,7 +40,7 @@ class Ouranos(commands.AutoShardedBot):
             command_prefix=prefix,
             case_insensitive=True,
             description=Settings.description,
-            help_command=commands.MinimalHelpCommand(),
+            help_command=HelpCommand(),
             intents=Settings.intents,
             allowed_mentions=Settings.allowed_mentions,
             **kwargs

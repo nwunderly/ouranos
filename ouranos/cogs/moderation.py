@@ -13,12 +13,13 @@ from typing import Optional
 from loguru import logger
 
 from ouranos.cog import Cog
+from ouranos.dpy.command import command, group
 from ouranos.utils import checks
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.constants import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, EMOJI_MASSBAN
-from ouranos.utils.converters import Duration, UserID, MBanUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
+from ouranos.utils.converters import Duration, UserID, MentionOrUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
 from ouranos.utils.helpers import exact_timedelta
 from ouranos.utils.errors import OuranosCommandError, ModerationError, UserNotInGuild, NotConfigured, \
     BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
@@ -188,16 +189,90 @@ class Moderation(Cog):
             raise UnexpectedError("Attempted to edit the mute duration of a user with empty history.")
 
         infraction = None
+        old_duration = None
         for i in reversed(history.active):
             if i in history.mute:
                 infraction = await modlog.get_infraction(guild.id, i)
+                old_duration = infraction.ends_at - infraction.created_at if infraction.ends_at else None
                 break
 
         if not infraction:
             raise UnexpectedError("Attempted to edit the mute duration of a user with no active mute infractions.")
 
+        # don't edit if it's the same duration
+        if new_duration == old_duration:
+            return infraction.infraction_id, False, old_duration
+
         await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
-        return infraction.infraction_id
+        return infraction.infraction_id, True, old_duration
+
+    async def _do_mass_mute(self, ctx, users, mod, reason, note, audit_reason, duration=None):
+        """Mutes a set of users and dispatches the event to the modlog."""
+        guild = ctx.guild
+        users = set(users)
+        total = len(users)
+        config = await db.get_config(guild)
+        role = guild.get_role(config.mute_role_id if config else 0)
+
+        if total <= 1:
+            raise OuranosCommandError("Not enough users to mute.")
+
+        await ctx.confirm_action(f"{TICK_YELLOW} Are you sure you would like to mute {total} users? (y/n)")
+
+        # check to make sure we can actually do this
+        not_in_guild = 0
+        already_muted = 0
+        mutable_members = []
+        for user in users:
+            member = await self.bot.get_or_fetch_member(guild, user.id)
+            if not member:
+                not_in_guild += 1
+                continue
+            elif role in member.roles:
+                already_muted += 1
+                continue
+            else:
+                mutable_members.append(member)
+
+            if not role:
+                raise NotConfigured('mute_role')
+            if not guild.me.guild_permissions.manage_roles:
+                raise BotMissingPermission('Manage Roles')
+            if not guild.me.top_role > role:
+                raise BotRoleHierarchyError
+            if await checks.is_server_mod(member):
+                raise ModActionOnMod
+
+        m = await ctx.send("Muting...")
+
+        # do the actual mutes now
+        success = []
+        for member in mutable_members:
+            await member.add_roles(role, reason=audit_reason)
+            success.append(member)
+
+        # dispatch the modlog event
+        if success:
+            await MassActionLogEvent('mute', guild, success, mod, reason, note, duration).dispatch()
+
+        # format response message
+        def _s(i):
+            return "s" if i != 1 else ""
+        content = f"{OK_HAND} Muted {len(success)}/{total} users"
+        if success:
+            dt = exact_timedelta(duration) if duration else 'permanent'
+            content += f' ({dt}).'
+        else:
+            content += '.'
+        extra_lines = [
+            f"{already_muted} user{_s(already_muted)} already muted" if already_muted else "",
+            f"{not_in_guild} user{_s(not_in_guild)} not found" if not_in_guild else ""
+        ]
+        extra = ", ".join(e for e in extra_lines if e)
+        if extra:
+            content += " *" + extra + ".*"
+
+        await m.edit(content=content)
 
     async def _do_unmute(self, guild, user, mod, reason, note, audit_reason):
         """Lifts a user's mute and dispatches the event to the modlog."""
@@ -322,18 +397,24 @@ class Moderation(Cog):
             raise UnexpectedError("Attempted to edit the ban duration of a user with empty history.")
 
         infraction = None
+        old_duration = None
         for i in reversed(history.active):
             if i in history.ban:
                 infraction = await modlog.get_infraction(guild.id, i)
+                old_duration = infraction.ends_at - infraction.created_at if infraction.ends_at else None
                 break
 
         if not infraction:
             raise UnexpectedError("Attempted to edit the ban duration of a user with no active ban infractions.")
 
-        await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
-        return infraction.infraction_id
+        # don't edit if it's the same duration
+        if new_duration == (infraction.ends_at - infraction.created_at if infraction.ends_at else None):
+            return infraction.infraction_id, False, old_duration
 
-    async def _do_mass_ban(self, ctx, users, mod, reason, note, audit_reason):
+        await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=edited_by)
+        return infraction.infraction_id, True, old_duration
+
+    async def _do_mass_ban(self, ctx, users, mod, reason, note, audit_reason, duration=None):
         """Bans a set of users and dispatches the event to the modlog."""
         guild = ctx.guild
         users = set(users)
@@ -342,7 +423,7 @@ class Moderation(Cog):
         if total <= 1:
             raise OuranosCommandError("Not enough users to ban.")
 
-        await ctx.confirm_action(f"{TICK_YELLOW} Are you sure you would like to ban {total} users?")
+        await ctx.confirm_action(f"{TICK_YELLOW} Are you sure you would like to ban {total} users? (y/n)")
 
         # filter out already-banned users
         ban_list = set(b.user.id for b in await guild.bans())
@@ -375,12 +456,17 @@ class Moderation(Cog):
 
         # dispatch the modlog event
         if success:
-            await MassActionLogEvent('ban', guild, success, mod, reason, note).dispatch()
+            await MassActionLogEvent('ban', guild, success, mod, reason, note, duration).dispatch()
 
         # format response message
         def _s(i):
             return "s" if i != 1 else ""
-        content = f"{EMOJI_MASSBAN} Banned {len(success)}/{total} users."
+        content = f"{EMOJI_MASSBAN} Banned {len(success)}/{total} users"
+        if success:
+            dt = exact_timedelta(duration) if duration else 'permanent'
+            content += f' ({dt}).'
+        else:
+            content += '.'
         extra_lines = [
             f"{already_banned} user{_s(already_banned)} already banned" if already_banned else "",
             f"{not_found} user{_s(not_found)} not found" if not_found else ""
@@ -490,7 +576,7 @@ class Moderation(Cog):
 
         return can_unban
 
-    @commands.command()
+    @command()
     @checks.server_mod()
     async def warn(self, ctx, user: discord.Member, *, reason: RequiredReason):
         """Applies a warning to a user.
@@ -501,7 +587,7 @@ class Moderation(Cog):
         delivered = await self._do_warn(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note)
         await ctx.send(f"{THUMBS_UP} Warned **{user}**. {notified(delivered)}")
 
-    @commands.command()
+    @command()
     @checks.server_mod()
     async def mute(self, ctx, user: discord.Member, duration: Optional[Duration], *, reason: Reason = None):
         """Mutes a user using the guild's configured mute role.
@@ -521,16 +607,19 @@ class Moderation(Cog):
         if muted_user and has_role:
             # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
             if await modlog.has_active_infraction(ctx.guild.id, user.id, 'mute'):
-                i = await self._do_mute_duration_edit(
+                i, edited, old = await self._do_mute_duration_edit(
                     guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
-                await ctx.send(f"{TICK_YELLOW} User is already muted (#{i}), changed duration instead ({dt}).")
+                old = exact_timedelta(old) if old else 'permanent'
+                await ctx.send(
+                    f"{TICK_YELLOW} User is already muted (#{i})" +
+                    (f", changed duration instead ({old} -> {dt})." if edited else '.'))
 
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
             # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
                 await ctx.confirm_action(f"{TICK_YELLOW} This user appears to have this guild's mute role, "
                                          f"but does not have any active mute infractions. "
-                                         f"Would you like to create an infraction?")
+                                         f"Would you like to create an infraction? (y/n)")
                 await LogEvent('mute', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
                 await ctx.send(OK_HAND)
 
@@ -540,7 +629,7 @@ class Moderation(Cog):
                 guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason, duration=duration)
             await ctx.send(f"{OK_HAND} Muted **{user}** ({dt}). {notified(delivered)}")
 
-    @commands.command()
+    @command()
     @checks.server_mod()
     async def unmute(self, ctx, user: MutedUser, *, reason: Reason = None):
         """Unmutes a user using the guild's configured mute role.
@@ -567,7 +656,7 @@ class Moderation(Cog):
                            f"I marked {_these} infraction{_s} as inactive to account for this discrepancy. "
                            f"`{p}history {user.id}` should now show no active mutes.")
 
-    @commands.command()
+    @command()
     @checks.server_mod()
     async def kick(self, ctx, user: discord.Member, *, reason: Reason = None):
         """Kicks a user from the guild.
@@ -580,7 +669,7 @@ class Moderation(Cog):
             guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note, audit_reason=audit_reason)
         await ctx.send(f"{CLAP} Kicked **{user}**. {notified(delivered)}")
 
-    @commands.command()
+    @command()
     @checks.server_mod()
     async def ban(self, ctx, user: UserID, duration: Optional[Duration], *, reason: Reason = None):
         """Bans a user from the guild.
@@ -602,16 +691,19 @@ class Moderation(Cog):
         if banned_user and banned_in_guild:
             # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
             if await modlog.has_active_infraction(ctx.guild.id, user.id, 'ban'):
-                i = await self._do_ban_duration_edit(
+                i, edited, old = await self._do_ban_duration_edit(
                     guild=ctx.guild, user=user, new_duration=duration, edited_by=ctx.author)
-                await ctx.send(f"{TICK_YELLOW} User is already banned (#{i}), changed duration instead ({dt}).")
+                old = exact_timedelta(old) if old else 'permanent'
+                await ctx.send(
+                    f"{TICK_YELLOW} User is already banned (#{i})" +
+                    (f", changed duration instead ({old} -> {dt})." if edited else '.'))
 
             # just kidding, we couldn't find an infraction. let's see if they want to create one.
             # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
             else:
                 await ctx.confirm_action(f"{TICK_YELLOW} This user appears to be banned from this guild, "
                                          f"but does not have any active ban infractions. "
-                                         f"Would you like to create an infraction?")
+                                         f"Would you like to create an infraction? (y/n)")
                 await LogEvent('ban', ctx.guild, user, ctx.author, reason, note, duration).dispatch()
                 await ctx.send(OK_HAND)
 
@@ -622,30 +714,7 @@ class Moderation(Cog):
             banned = 'Forcebanned' if force else 'Banned'
             await ctx.send(f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}")
 
-    @commands.group(aliases=['mban'], invoke_without_command=True)
-    @checks.server_admin()
-    async def massban(self, ctx, users: commands.Greedy[MBanUserID], *, reason: Reason = None):
-        """Bans a set of users from the server. User IDs or mentions must be provided.
-
-        Users are not sent a DM notification, and this action is logged in a single message."""
-        reason, note, audit_reason = reason or (None, None, None)
-        audit_reason = audit_reason or Reason.format_reason(ctx)
-        await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
-
-    @massban.command(name='file')
-    @checks.server_admin()
-    async def mban_file(self, ctx, *, reason: Reason = None):
-        reason, note, audit_reason = reason or (None, None, None)
-        audit_reason = audit_reason or Reason.format_reason(ctx)
-        try:
-            users = [discord.Object(int(i)) for i in (await ctx.message.attachments[0].read()).decode().split()]
-        except IndexError:
-            raise OuranosCommandError("You need to attach a file to use this command!")
-        except (TypeError, ValueError):
-            raise OuranosCommandError("Invalid file type.")
-        await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
-
-    @commands.command()
+    @command()
     @checks.server_mod()
     async def unban(self, ctx, user: BannedUser, *, reason: Reason = None):
         """Unbans a user previously banned in this guild.
@@ -673,29 +742,62 @@ class Moderation(Cog):
                            f"I marked {these} infraction{s} as inactive to account for this discrepancy. "
                            f"`{p}history {user.id}` should now show no active bans.")
 
+    @group(aliases=['mban'])
+    @checks.server_admin()
+    async def massban(self, ctx, users: commands.Greedy[MentionOrUserID], duration: Optional[Duration], *, reason: Reason = None):
+        """Bans a set of users from the server. User IDs or mentions must be provided.
+
+        Users are not sent a DM notification, and this action is logged in a single message."""
+        reason, note, audit_reason = reason or (None, None, None)
+        audit_reason = audit_reason or Reason.format_reason(ctx)
+        await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason, duration)
+
+    @massban.command(name='file')
+    @checks.server_admin()
+    async def mban_file(self, ctx, *, reason: Reason = None):
+        reason, note, audit_reason = reason or (None, None, None)
+        audit_reason = audit_reason or Reason.format_reason(ctx)
+        try:
+            users = [discord.Object(int(i)) for i in (await ctx.message.attachments[0].read()).decode().split()]
+        except IndexError:
+            raise OuranosCommandError("You need to attach a file to use this command!")
+        except (TypeError, ValueError):
+            raise OuranosCommandError("Invalid file type.")
+        await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
+
+    @command(aliases=['mmute'])
+    @checks.server_admin()
+    async def massmute(self, ctx, users: commands.Greedy[MentionOrUserID], duration: Optional[Duration], *, reason: Reason = None):
+        """Mutes a set of members. User IDs or mentions must be provided.
+
+        Users are not sent a DM notification, and this action is logged in a single message."""
+        reason, note, audit_reason = reason or (None, None, None)
+        audit_reason = audit_reason or Reason.format_reason(ctx)
+        await self._do_mass_mute(ctx, users, ctx.author, reason, note, audit_reason, duration)
+
     async def _do_removal(self, ctx, limit, check=None, channel=None, **kwargs):
         if limit >= 200:
             await ctx.confirm_action(f"This will delete up to {limit} messages. Are you sure? (y/n)")
         if limit < 1:
             raise OuranosCommandError("Not enough messages to search!")
-            
+
         def real_check(m):
             return m != ctx.message and (check(m) if check else True)
 
-        messages = await (channel or ctx.channel).purge(limit=limit+1, check=real_check, **kwargs)
+        messages = await (channel or ctx.channel).purge(limit=limit + 1, check=real_check, **kwargs)
 
         count = len(messages)
         authors = defaultdict(lambda: 0)
         for m in messages:
             authors[str(m.author.name)] += 1
 
-        s = 's'if count != 1 else ''
+        s = 's' if count != 1 else ''
         response = f"{TICK_GREEN} Removed {count} message{s}."
         if count:
             response += "```yaml\n" + '\n'.join((f"{a}: {n}" for a, n in authors.items())) + "\n```"
         await ctx.send(response, delete_after=10)
 
-    @commands.group(aliases=['rm', 'purge', 'clean'], invoke_without_command=True)
+    @group(aliases=['rm', 'purge', 'clean'])
     @checks.server_mod()
     async def remove(self, ctx, limit: int):
         """Bulk delete messages from a channel."""
@@ -758,7 +860,7 @@ class Moderation(Cog):
 
         await self._do_removal(ctx, limit=limit, check=check)
 
-    @remove.group(name='regex', aliases=['re'], invoke_without_command=True)
+    @remove.group(name='regex', aliases=['re'])
     @checks.server_mod()
     async def rm_regex(self, ctx, pattern, limit: int):
         """Remove messages matching a regex pattern. Be careful with this one!

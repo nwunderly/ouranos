@@ -16,6 +16,7 @@ from loguru import logger
 from tortoise import Tortoise
 
 from ouranos.cog import Cog
+from ouranos.dpy.command import command, group
 from ouranos.utils import database as db
 from ouranos.utils.checks import bot_admin
 from ouranos.utils.converters import A_OR_B
@@ -43,7 +44,7 @@ class Admin(Cog):
         self._last_result = None
         self.sessions = set()
 
-    @commands.group(name='db', invoke_without_command=True)
+    @group(name='db')
     @bot_admin()
     async def _db(self, ctx):
         """Database admin actions."""
@@ -106,7 +107,7 @@ class Admin(Cog):
     #     modlog.infraction_cache[]
     #     await ctx.send(OK_HAND)
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def blacklist(self, ctx, add_or_remove: AddOrRemove = None, id: int = 0):
         """Add or remove a user or guild id from the bot's blacklist."""
@@ -131,7 +132,7 @@ class Admin(Cog):
         self.bot.dump_blacklist()
         await ctx.send("Done!")
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def load(self, ctx, cog):
         try:
@@ -140,7 +141,7 @@ class Admin(Cog):
         except Exception as e:
             await ctx.send(f"```py\n{e.__class__.__name__}: {e}\n```")
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def unload(self, ctx, cog):
         try:
@@ -149,7 +150,7 @@ class Admin(Cog):
         except Exception as e:
             await ctx.send(f"```py\n{e.__class__.__name__}: {e}\n```")
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def reload(self, ctx, cog):
         try:
@@ -183,7 +184,7 @@ class Admin(Cog):
             return f'```py\n{e.__class__.__name__}: {e}\n```'
         return f'```py\n{e.text}{"^":>{e.offset}}\n{e.__class__.__name__}: {e}```'
 
-    @commands.command(name='eval', aliases=['e'])
+    @command(name='eval', aliases=['e'])
     @bot_admin()
     async def _eval(self, ctx, *, body: str):
         """Runs arbitrary python code"""
@@ -232,7 +233,7 @@ class Admin(Cog):
                 self._last_result = ret
                 await ctx.send(f'```py\n{value}{ret}\n```')
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def repl(self, ctx):
         """Launches an interactive REPL session."""
@@ -322,7 +323,7 @@ class Admin(Cog):
             except discord.HTTPException as e:
                 await ctx.send(f'Unexpected error: `{e}`')
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def sql(self, ctx, *, query: str):
         """Run some SQL."""
@@ -361,7 +362,7 @@ class Admin(Cog):
         else:
             await ctx.send(fmt)
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def ls(self, ctx, path='.'):
         """List the contents of a directory."""
@@ -373,7 +374,7 @@ class Admin(Cog):
         ls = '\n'.join(ls)
         await ctx.send(f'```\n{ls}\n```')
 
-    @commands.command()
+    @command()
     @bot_admin()
     async def cat(self, ctx, file):
         """Upload the contents of a text file to Discord."""

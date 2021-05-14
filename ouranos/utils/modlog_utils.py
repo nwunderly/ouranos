@@ -10,6 +10,7 @@ from ouranos.bot import Ouranos
 from ouranos.utils import database as db
 from ouranos.utils.constants import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN
 from ouranos.utils.helpers import exact_timedelta
+from ouranos.utils.errors import OuranosCommandError
 
 
 class LogEvent:
@@ -38,13 +39,14 @@ class SmallLogEvent:
 
 
 class MassActionLogEvent:
-    def __init__(self, type, guild, users, mod, reason, note):
+    def __init__(self, type, guild, users, mod, reason, note, duration):
         self.type = type
         self.guild = guild
         self.users = users
         self.mod = mod
         self.reason = reason
         self.note = note
+        self.duration = duration
 
     async def dispatch(self):
         Ouranos.bot.dispatch('mass_action_log', self)
@@ -108,6 +110,7 @@ async def new_infractions_bulk(guild_id, user_ids, mod_id, type, reason, note, d
         infraction_ids = await get_case_id(guild_id, count=len(user_ids))
     created_at = time.time()
     ends_at = created_at + duration if duration else None
+    rng = [min(infraction_ids), max(infraction_ids)]
     await db.Infraction.bulk_create([
         db.Infraction(
             guild_id=guild_id,
@@ -120,6 +123,7 @@ async def new_infractions_bulk(guild_id, user_ids, mod_id, type, reason, note, d
             created_at=created_at,
             ends_at=ends_at,
             active=active,
+            bulk_infraction_id_range=rng,
         ) for i, user_id in enumerate(user_ids)
     ])
     for i, user_id in enumerate(user_ids):
@@ -141,15 +145,23 @@ async def get_infraction(guild_id, infraction_id):
     return await db.Infraction.get_or_none(guild_id=guild_id, infraction_id=infraction_id)
 
 
-# TODO: implement get_infractions_bulk
-# async def get_infractions_bulk(guild_id, *infraction_ids):
-#     infractions = []
-#     remaining_ids = list(infraction_ids)
-#     for infraction_id in infraction_ids:
-#         if i := db.infraction_cache.get((guild_id, infraction_id)):
-#             infractions.append(i)
-#             remaining_ids.remove(i)
-#     async for infraction in db.Infraction.filter(infraction_id__in=remaining_ids)
+async def get_infractions_bulk(guild_id, infraction_ids):
+    infractions = []
+    remaining_ids = list(infraction_ids)
+
+    # check cache
+    for infraction_id in infraction_ids:
+        if inf := db.infraction_cache.get((guild_id, infraction_id)):
+            infractions.append(inf)
+            remaining_ids.remove(inf.infraction_id)
+
+    # query the db
+    if remaining_ids:
+        async for infraction in db.Infraction.filter(infraction_id__in=remaining_ids):
+            infractions.append(infraction)
+
+    # sort and return
+    return sorted(infractions, key=lambda inf: inf.infraction_id)
 
 
 async def get_history(guild_id, user_id):
@@ -171,7 +183,7 @@ def format_log_message(emoji, title, infraction_id, duration, user, mod, reason,
 
 
 def format_edited_log_message(content, **kwargs):
-    order = ['user', 'duration', 'moderator', 'reason', 'note']
+    order = ['user', 'users', 'duration', 'moderator', 'reason', 'note']
     split = content.split('\n')
     first_line = split[0] + '\n'
     split = split[1:]
@@ -193,7 +205,7 @@ def format_small_log_message(emoji, title, user, infraction_id):
     return f"{emoji} {title} for user {user} (#{infraction_id})"
 
 
-def format_mass_action_log_message(emoji, title, infraction_id_range, user_count, mod, reason, note):
+def format_mass_action_log_message(emoji, title, infraction_id_range, duration, user_count, mod, reason, note):
     infraction_id_start, infraction_id_end = infraction_id_range
     if infraction_id_start != infraction_id_end:
         _range = f"#{infraction_id_start}-{infraction_id_end}"
@@ -202,6 +214,7 @@ def format_mass_action_log_message(emoji, title, infraction_id_range, user_count
     lines = [
         f"{emoji} **{title} ({_range})**\n",
         f"**Users:** {user_count}\n",
+        f"**Duration:** {duration}\n" if duration else "",
         f"**Moderator:** {mod}\n",
         f"**Reason:** {reason}\n",
         f"**Note:** {note}\n",
@@ -229,18 +242,60 @@ async def edit_log_message(infraction, **kwargs):
 
 async def edit_infraction_and_message(infraction, **kwargs):
     if 'edited_by' in kwargs:
-        edited_by = kwargs.pop('edited_by')
+        edit = f"(edited by {kwargs.pop('edited_by')})"
     else:
-        edited_by = None
+        edit = ''
+
     k1, k2 = kwargs.copy(), kwargs.copy()
     if 'duration' in kwargs:
         duration = kwargs.pop('duration')
         k1['ends_at'] = infraction.created_at + duration if duration else None
-        edit = f"(edited by {edited_by})" if edited_by else ''
         d = exact_timedelta(duration) if duration else 'permanent'
         k2['duration'] = f"{d} {edit}"
+    if 'reason' in kwargs:
+        r = kwargs.pop('reason')
+        k1['reason'] = k2['reason'] = f"{r} {edit}"
+    if 'note' in kwargs:
+        n = kwargs.pop('note')
+        k1['note'] = k2['note'] = f"{n} {edit}"
+
     i = await db.edit_record(infraction, **k1)
     m = await edit_log_message(infraction, **k2)
+    return i, m
+
+
+async def edit_infractions_and_messages_bulk(infractions, **kwargs):
+    """Edits a set of infractions. All must be linked to the same log message."""
+    inf = infractions[0]
+
+    for i in infractions:
+        if i.message_id != inf.message_id:
+            raise OuranosCommandError("Infraction message_id mismatch during bulk edit.")
+        elif i.type != inf.type:
+            raise OuranosCommandError("Infraction type mismatch during bulk edit.")
+        elif i.created_at != inf.created_at:
+            raise OuranosCommandError("Infraction created_at mismatch during bulk edit.")
+
+    if 'edited_by' in kwargs:
+        edit = f"(edited by {kwargs.pop('edited_by')})"
+    else:
+        edit = ''
+
+    k1, k2 = kwargs.copy(), kwargs.copy()
+    if 'duration' in kwargs:
+        duration = kwargs.pop('duration')
+        k1['ends_at'] = inf.created_at + duration if duration else None
+        d = exact_timedelta(duration) if duration else 'permanent'
+        k2['duration'] = f"{d} {edit}"
+    if 'reason' in kwargs:
+        r = kwargs.pop('reason')
+        k1['reason'] = k2['reason'] = f"{r} {edit}"
+    if 'note' in kwargs:
+        n = kwargs.pop('note')
+        k1['note'] = k2['note'] = f"{n} {edit}"
+
+    i = await db.edit_records_bulk(infractions, **k1)
+    m = await edit_log_message(inf, **k2)
     return i, m
 
 
@@ -341,13 +396,27 @@ async def log_mute_persist(guild, user, infraction_id):
     await new_log_message(guild, content)
 
 
-async def log_massban(guild, users, mod, reason, note):
+async def log_mass_ban(guild, users, mod, reason, note, duration):
     infraction_ids = await get_case_id(guild.id, count=len(users))
     user_ids = [user.id for user in users]
 
-    await new_infractions_bulk(guild.id, user_ids, mod.id, 'ban', reason, note, None, True, infraction_ids)
+    await new_infractions_bulk(guild.id, user_ids, mod.id, 'ban', reason, note, duration, True, infraction_ids)
 
-    content = format_mass_action_log_message(EMOJI_MASSBAN, 'USERS MASSBANNED', (infraction_ids[0], infraction_ids[-1]), len(users), mod, reason, note)
+    duration = exact_timedelta(duration) if duration else None
+    content = format_mass_action_log_message(EMOJI_MASSBAN, 'USERS MASS-BANNED', (infraction_ids[0], infraction_ids[-1]), duration, len(users), mod, reason, note)
+    message = await new_log_message(guild, content)
+
+    await db.Infraction.filter(infraction_id__in=infraction_ids).update(message_id=message.id)
+
+
+async def log_mass_mute(guild, users, mod, reason, note, duration):
+    infraction_ids = await get_case_id(guild.id, count=len(users))
+    user_ids = [user.id for user in users]
+
+    await new_infractions_bulk(guild.id, user_ids, mod.id, 'mute', reason, note, duration, True, infraction_ids)
+
+    duration = exact_timedelta(duration) if duration else None
+    content = format_mass_action_log_message(EMOJI_MUTE, 'USERS MASS-MUTED', (infraction_ids[0], infraction_ids[-1]), duration, len(users), mod, reason, note)
     message = await new_log_message(guild, content)
 
     await db.Infraction.filter(infraction_id__in=infraction_ids).update(message_id=message.id)

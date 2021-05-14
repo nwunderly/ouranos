@@ -6,6 +6,7 @@ from loguru import logger
 
 from ouranos.cog import Cog
 from ouranos.settings import Settings
+from ouranos.dpy.command import command, group
 from ouranos.utils import database as db
 from ouranos.utils.checks import is_bot_admin, server_admin
 from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
@@ -34,7 +35,7 @@ class Config(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @command()
     @server_admin()
     @config_exists(False)
     async def init(self, ctx):
@@ -44,7 +45,7 @@ class Config(Cog):
         else:
             await ctx.send(f"{TICK_RED} This server is already set up!")
 
-    @commands.group(invoke_without_command=True)
+    @group()
     @server_admin()
     async def config(self, ctx):
         config = await db.get_config(ctx.guild)

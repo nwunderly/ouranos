@@ -1,7 +1,5 @@
 import asyncio
-
 from discord.ext import commands
-
 from ouranos.utils.errors import ActionTimedOut, ActionCanceled
 
 

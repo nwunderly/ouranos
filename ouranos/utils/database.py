@@ -33,6 +33,14 @@ async def edit_record(record, **kwargs):
     return record
 
 
+# TODO: optimize this
+async def edit_records_bulk(records, **kwargs):
+    ret = []
+    for record in records:
+        ret.append(await edit_record(record, **kwargs))
+    return ret
+
+
 class Config(Model):
     guild_id = fields.BigIntField(pk=True, generated=False)
     prefix = fields.TextField(default=Settings.prefix)
@@ -72,29 +80,6 @@ async def update_config(*, guild=None, config=None, **kwargs):
     return config
 
 
-class Infraction(Model):
-    global_id = fields.IntField(pk=True, generated=True)
-    guild_id = fields.BigIntField()
-    infraction_id = fields.IntField()
-    user_id = fields.BigIntField()
-    mod_id = fields.BigIntField()
-    message_id = fields.BigIntField(default=0)
-    type = fields.TextField()
-    reason = fields.TextField(null=True)
-    note = fields.TextField(null=True)
-    created_at = fields.BigIntField()
-    ends_at = fields.BigIntField(null=True)
-    active = fields.BooleanField()
-
-    class Meta:
-        unique_together = ("guild_id", "infraction_id")
-
-
-class MiscData(Model):
-    guild_id = fields.BigIntField(pk=True, generated=False)
-    last_case_id = fields.IntField(default=0)
-
-
 class IntArrayField(fields.Field, list):
     SQL_TYPE = "int[]"
 
@@ -109,6 +94,30 @@ class IntArrayField(fields.Field, list):
             array = json.loads(value.replace("'", '"'))
             return [int(x) for x in array]
         return value
+
+
+class Infraction(Model):
+    global_id = fields.IntField(pk=True, generated=True)
+    guild_id = fields.BigIntField()
+    infraction_id = fields.IntField()
+    user_id = fields.BigIntField()
+    mod_id = fields.BigIntField()
+    message_id = fields.BigIntField(default=0)
+    type = fields.TextField()
+    reason = fields.TextField(null=True)
+    note = fields.TextField(null=True)
+    created_at = fields.BigIntField()
+    ends_at = fields.BigIntField(null=True)
+    active = fields.BooleanField()
+    bulk_infraction_id_range = IntArrayField(null=True)  # added 5/14/21
+
+    class Meta:
+        unique_together = ("guild_id", "infraction_id")
+
+
+class MiscData(Model):
+    guild_id = fields.BigIntField(pk=True, generated=False)
+    last_case_id = fields.IntField(default=0)
 
 
 class History(Model):

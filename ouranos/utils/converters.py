@@ -93,7 +93,7 @@ class UserID(Converter):
 userid_pattern = re.compile(r"<@!?(\d+)>")
 
 
-class MBanUserID(Converter):
+class MentionOrUserID(Converter):
     async def convert(self, ctx, argument):
         try:
             match = userid_pattern.match(argument)
@@ -276,3 +276,21 @@ class InfractionID(Converter):
 
         return infraction_id
 
+
+class InfractionIDRange(Converter):
+    async def convert(self, ctx, argument):
+        split = argument.split(':')
+        if len(split) != 2:
+            raise BadArgument("Infraction id range must be in format `start:end`.")
+
+        conv = InfractionID()
+        s, e = split
+        e = e or '-1'  # allow trailing colon to refer to "everything after x"
+        start, end = await conv.convert(ctx, s), await conv.convert(ctx, e)
+
+        if start >= end:
+            raise BadArgument("Invalid infraction id range.")
+        if end - start > 100:
+            raise BadArgument("That infraction id range is too large!")
+
+        return list(range(start, end+1))

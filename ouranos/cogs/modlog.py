@@ -7,11 +7,12 @@ from discord.ext import commands, tasks
 from loguru import logger
 
 from ouranos.cog import Cog
+from ouranos.dpy.command import command, group
 from ouranos.utils import database as db
 from ouranos.utils import modlog_utils as modlog
 from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.converters import UserID, Duration, InfractionID
+from ouranos.utils.converters import UserID, Duration, InfractionID, InfractionIDRange
 from ouranos.utils.constants import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 from ouranos.utils.helpers import approximate_timedelta, exact_timedelta, WEEK
@@ -36,7 +37,8 @@ SMALL_LOGS = {
 
 
 MASS_ACTION_LOGS = {
-    'ban': modlog.log_massban,
+    'ban': modlog.log_mass_ban,
+    'mute': modlog.log_mass_mute,
 }
 
 
@@ -163,7 +165,7 @@ class Modlog(Cog):
         missed = sum(len(infs) for infs in to_check.values())
         dt = time.monotonic() - t0
 
-        if found or missed or discarded:
+        if found or missed:
             logger.info(f"fetched {found} audit log entries, unable to find {missed}, discarded {discarded}. task ran in {dt} seconds.")
             
         return found, missed
@@ -332,6 +334,7 @@ class Modlog(Cog):
     async def on_log(self, log):
         if not await self.guild_has_modlog_config(log.guild):
             return
+
         if isinstance(log, LogEvent):
             await LOGS[log.type](log.guild, log.user, log.mod, log.reason, log.note, log.duration)
 
@@ -339,6 +342,7 @@ class Modlog(Cog):
     async def on_small_log(self, log):
         if not await self.guild_has_modlog_config(log.guild):
             return
+
         if isinstance(log, SmallLogEvent):
             await SMALL_LOGS[log.type](log.guild, log.user, log.infraction_id)
 
@@ -346,34 +350,55 @@ class Modlog(Cog):
     async def on_mass_action_log(self, log):
         if not await self.guild_has_modlog_config(log.guild):
             return
+
         if isinstance(log, MassActionLogEvent):
-            await MASS_ACTION_LOGS[log.type](log.guild, log.users, log.mod, log.reason, log.note)
+            await MASS_ACTION_LOGS[log.type](log.guild, log.users, log.mod, log.reason, log.note, log.duration)
 
     async def _get_modlog_channel(self, guild):
         config = await db.get_config(guild)
         modlog_channel = guild.get_channel(config.modlog_channel_id if config else 0)
+
         if not modlog_channel:
             raise NotConfigured('modlog_channel')
+
         return modlog_channel
 
     async def _get_infraction(self, guild_id, infraction_id):
         infraction = await modlog.get_infraction(guild_id, infraction_id)
+
         if not infraction:
             raise InfractionNotFound(infraction_id)
+
         return infraction
+
+    async def _get_infractions_bulk(self, guild_id, infraction_ids):
+        infractions = await modlog.get_infractions_bulk(guild_id, infraction_ids)
+        not_found = infraction_ids.copy()
+
+        for i in infractions:
+            if i.infraction_id in infraction_ids:
+                not_found.remove(i.infraction_id)
+
+        if not_found:
+            # only complain about the first one we can't find
+            raise InfractionNotFound(not_found[0])
+
+        return infractions
 
     async def _fetch_infraction_message(self, ctx, guild, infraction_id):
         modlog_channel = await self._get_modlog_channel(guild)
         infraction = await self._get_infraction(guild.id, infraction_id)
         message_id = infraction.message_id
+
         if message_id:
             try:
                 return await modlog_channel.fetch_message(message_id)
             except discord.NotFound:
                 pass
+
         raise ModlogMessageNotFound(infraction_id, ctx.prefix)
 
-    @commands.group(aliases=['case'], invoke_without_command=True)
+    @group(aliases=['case', 'inf'])
     @server_mod()
     async def infraction(self, ctx, infraction_id: InfractionID):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
@@ -436,28 +461,52 @@ class Modlog(Cog):
             f"Active: {infraction.active}\n"
             f"```")
 
-    @infraction.command(aliases=['edit-reason', 'editr'])
+    @command(aliases=['edit-reason', 'editr'])
     @server_mod()
-    async def edit_reason(self, ctx, infraction_id: InfractionID, *, new_reason):
+    async def reason(self, ctx, infraction_id: InfractionID, *, new_reason):
         """Edit the reason for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
-        new_reason = f"{new_reason} (edited by {ctx.author})"
-        _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason)
-        await ctx.send(message.jump_url)
 
-    @infraction.command(aliases=['edit-note', 'editn'])
+        # handle bulk edit
+        if infraction.bulk_infraction_id_range:
+            start, end = infraction.bulk_infraction_id_range
+            await ctx.confirm_action(f"This will edit {end - start + 1} infractions. Are you sure? (y/n)")
+            infraction_ids = list(range(start, end + 1))
+            infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
+            m = await ctx.send("Editing...")
+            _, message = await modlog.edit_infractions_and_messages_bulk(infractions, reason=new_reason, edited_by=ctx.author)
+            await m.edit(content=message.jump_url)
+
+        # edit normally
+        else:
+            _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason, edited_by=ctx.author)
+            await ctx.send(message.jump_url)
+
+    @command(aliases=['edit-note', 'editn'])
     @server_mod()
-    async def edit_note(self, ctx, infraction_id: InfractionID, *, new_note):
+    async def note(self, ctx, infraction_id: InfractionID, *, new_note):
         """Edit the note for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
-        new_note = f"{new_note} (edited by {ctx.author})"
-        _, message = await modlog.edit_infraction_and_message(infraction, note=new_note)
-        await ctx.send(message.jump_url)
 
-    @infraction.command(aliases=['edit-duration', 'editd'])
+        # handle bulk edit
+        if infraction.bulk_infraction_id_range:
+            start, end = infraction.bulk_infraction_id_range
+            await ctx.confirm_action(f"This will edit {end - start + 1} infractions. Are you sure? (y/n)")
+            infraction_ids = list(range(start, end + 1))
+            infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
+            m = await ctx.send("Editing...")
+            _, message = await modlog.edit_infractions_and_messages_bulk(infractions, note=new_note, edited_by=ctx.author)
+            await m.edit(content=message.jump_url)
+
+        # edit normally
+        else:
+            _, message = await modlog.edit_infraction_and_message(infraction, note=new_note, edited_by=ctx.author)
+            await ctx.send(message.jump_url)
+
+    @command(aliases=['edit-duration', 'editd'])
     @server_mod()
-    async def edit_duratiion(self, ctx, infraction_id: InfractionID, new_duration: Duration):
-        """Edit the duration of a running infraction. Useful if the member is no longer in the server.
+    async def duration(self, ctx, infraction_id: InfractionID, new_duration: Duration):
+        """Edit the duration of an active infraction. Useful if the member is no longer in the server.
 
         Note: this only works for mute and ban infractions.
         """
@@ -465,9 +514,28 @@ class Modlog(Cog):
         if infraction.type not in ('mute', 'ban'):
             raise OuranosCommandError("This command only works for mute and ban infractions.")
         elif not infraction.active:
-            raise OuranosCommandError("This command is not active. Editing the duration will have no effect.")
-        _, message = await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=ctx.author)
-        await ctx.send(message.jump_url)
+            raise OuranosCommandError("This infraction is not active. Editing the duration will have no effect.")
+
+        # handle bulk edit
+        if infraction.bulk_infraction_id_range:
+            start, end = infraction.bulk_infraction_id_range
+            await ctx.confirm_action(f"This will edit {end - start + 1} infractions. Are you sure? (y/n)")
+            infraction_ids = list(range(start, end + 1))
+            infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
+
+            # make sure these infractions are valid
+            for infraction in infractions:
+                if infraction.type not in ('mute', 'ban'):
+                    raise OuranosCommandError("This command only works for mute and ban infractions.")
+
+            m = await ctx.send("Editing...")
+            _, message = await modlog.edit_infractions_and_messages_bulk(infractions, duration=new_duration, edited_by=ctx.author)
+            await m.edit(content=message.jump_url)
+
+        # edit normally
+        else:
+            _, message = await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=ctx.author)
+            await ctx.send(message.jump_url)
 
     @infraction.command(name='delete')
     @server_admin()
@@ -491,7 +559,7 @@ class Modlog(Cog):
             raise HistoryNotFound(user_id)
         return history
 
-    @commands.group(aliases=['h'], invoke_without_command=True)
+    @group(aliases=['h'])
     @server_mod()
     async def history(self, ctx, *, user: UserID):
         """Returns useful info on a user's recent infractions."""
