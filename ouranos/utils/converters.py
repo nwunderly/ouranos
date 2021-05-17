@@ -4,10 +4,10 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Converter, BadArgument
 
-from ouranos.utils import database as db
-from ouranos.utils import modlog_utils as modlog
+from ouranos.utils import db
+from ouranos.utils import modlog
 from ouranos.utils.errors import NotConfigured, BotMissingPermission
-from ouranos.utils.helpers import DAY
+from ouranos.utils.format import DAY
 
 
 class FetchedUser(Converter):

@@ -2,7 +2,7 @@ import csv
 import discord
 from discord.ext import commands
 
-from ouranos.utils import database, modlog_utils
+from ouranos.utils import db, modlog
 from auth import DB_URL_PROD, TOKEN_PROD
 
 
@@ -85,7 +85,7 @@ async def dump_to_ouranos():
 
     print("Dumping to db.")
     for infraction in infractions_sorted:
-        i = await modlog_utils.new_infraction(
+        i = await modlog.new_infraction(
             GUILD,
             infraction.user_id,
             infraction.mod_id,
@@ -97,7 +97,7 @@ async def dump_to_ouranos():
 
 
 async def main():
-    await database.init(DB_URL_PROD)
+    await db.init(DB_URL_PROD)
     print("Connected to ouranos db.")
 
     print("===== BEGINNING MIGRATION =====")

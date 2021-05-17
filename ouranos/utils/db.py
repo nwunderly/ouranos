@@ -140,6 +140,6 @@ async def init(db_url):
     logger.info("Connecting to database.")
     await Tortoise.init(
         db_url=db_url,
-        modules={'models': ['ouranos.utils.database']}
+        modules={'models': ['ouranos.utils.db']}
     )
     await Tortoise.generate_schemas()

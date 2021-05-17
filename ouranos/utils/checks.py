@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from ouranos.settings import Settings
-from ouranos.utils import database as db
+from ouranos.utils import db
 
 
 # checks that apply to every command invocation

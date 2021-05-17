@@ -2,14 +2,13 @@ import discord
 
 from discord.ext import commands
 from typing import Union
-from loguru import logger
 
-from ouranos.cog import Cog
 from ouranos.settings import Settings
+from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
-from ouranos.utils import database as db
+from ouranos.utils import db
 from ouranos.utils.checks import is_bot_admin, server_admin
-from ouranos.utils.constants import TICK_GREEN, TICK_RED, TICK_YELLOW
+from ouranos.utils.emojis import TICK_GREEN, TICK_RED, TICK_YELLOW
 
 
 def config_exists(exists=True):
@@ -31,7 +30,7 @@ class Zero(commands.Converter):
 
 
 class Config(Cog):
-    """Bot configuration."""
+    """Bot configuration commands."""
     def __init__(self, bot):
         self.bot = bot
 

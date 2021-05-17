@@ -6,16 +6,16 @@ from collections import defaultdict, deque
 from discord.ext import commands, tasks
 from loguru import logger
 
-from ouranos.cog import Cog
+from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
-from ouranos.utils import database as db
-from ouranos.utils import modlog_utils as modlog
-from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent, MassActionLogEvent
+from ouranos.utils import db
+from ouranos.utils import modlog
+from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.converters import UserID, Duration, InfractionID, InfractionIDRange
-from ouranos.utils.constants import TICK_GREEN
+from ouranos.utils.converters import UserID, Duration, InfractionID
+from ouranos.utils.emojis import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
-from ouranos.utils.helpers import approximate_timedelta, exact_timedelta, WEEK
+from ouranos.utils.format import approximate_timedelta, exact_timedelta, WEEK
 
 
 LOGS = {
@@ -56,7 +56,7 @@ class FetchedAuditLogEntry:
 
 
 class Modlog(Cog):
-    """Ouranos' custom built modlog."""
+    """Modlog related commands."""
     def __init__(self, bot):
         self.bot = bot
         self._last_case_id_cache = {}

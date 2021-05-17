@@ -4,24 +4,24 @@ import re
 import time
 import typing
 import shlex
-
 import discord
+
 from discord.ext import commands
 from discord.ext import tasks
 from collections import defaultdict
 from typing import Optional
 from loguru import logger
 
-from ouranos.cog import Cog
+from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
 from ouranos.utils import checks
-from ouranos.utils import database as db
-from ouranos.utils import modlog_utils as modlog
-from ouranos.utils.modlog_utils import LogEvent, SmallLogEvent, MassActionLogEvent
-from ouranos.utils.constants import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, EMOJI_MASSBAN
+from ouranos.utils import db
+from ouranos.utils import modlog
+from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
+from ouranos.utils.emojis import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, EMOJI_MASSBAN
 from ouranos.utils.converters import Duration, UserID, MentionOrUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
-from ouranos.utils.helpers import exact_timedelta
-from ouranos.utils.errors import OuranosCommandError, ModerationError, UserNotInGuild, NotConfigured, \
+from ouranos.utils.format import exact_timedelta
+from ouranos.utils.errors import ModerationError, UserNotInGuild, NotConfigured, \
     BotMissingPermission, BotRoleHierarchyError, ModActionOnMod, UnexpectedError
 
 
@@ -60,11 +60,11 @@ async def try_send(user, message):
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
-        raise OuranosCommandError(message.capitalize())
+        raise ModerationError(message.capitalize())
 
 
 class Moderation(Cog):
-    """Moderation commands."""
+    """Moderation related commands."""
     def __init__(self, bot):
         self.bot = bot
         self.check_timers.start()
@@ -215,7 +215,7 @@ class Moderation(Cog):
         role = guild.get_role(config.mute_role_id if config else 0)
 
         if total <= 1:
-            raise OuranosCommandError("Not enough users to mute.")
+            raise ModerationError("Not enough users to mute.")
 
         await ctx.confirm_action(f"{TICK_YELLOW} Are you sure you would like to mute {total} users? (y/n)")
 
@@ -421,7 +421,7 @@ class Moderation(Cog):
         total = len(users)
 
         if total <= 1:
-            raise OuranosCommandError("Not enough users to ban.")
+            raise ModerationError("Not enough users to ban.")
 
         await ctx.confirm_action(f"{TICK_YELLOW} Are you sure you would like to ban {total} users? (y/n)")
 
@@ -760,9 +760,9 @@ class Moderation(Cog):
         try:
             users = [discord.Object(int(i)) for i in (await ctx.message.attachments[0].read()).decode().split()]
         except IndexError:
-            raise OuranosCommandError("You need to attach a file to use this command!")
+            raise ModerationError("You need to attach a file to use this command!")
         except (TypeError, ValueError):
-            raise OuranosCommandError("Invalid file type.")
+            raise ModerationError("Invalid file type.")
         await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
 
     @command(aliases=['mmute'])
@@ -779,7 +779,7 @@ class Moderation(Cog):
         if limit >= 200:
             await ctx.confirm_action(f"This will delete up to {limit} messages. Are you sure? (y/n)")
         if limit < 1:
-            raise OuranosCommandError("Not enough messages to search!")
+            raise ModerationError("Not enough messages to search!")
 
         def real_check(m):
             return m != ctx.message and (check(m) if check else True)

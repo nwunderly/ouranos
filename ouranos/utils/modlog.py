@@ -1,15 +1,11 @@
 import asyncio
 import re
 import time
-import discord
-
-from discord.ext import commands
-from loguru import logger
 
 from ouranos.bot import Ouranos
-from ouranos.utils import database as db
-from ouranos.utils.constants import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN
-from ouranos.utils.helpers import exact_timedelta
+from ouranos.utils import db
+from ouranos.utils.emojis import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN
+from ouranos.utils.format import exact_timedelta
 from ouranos.utils.errors import OuranosCommandError
 
 

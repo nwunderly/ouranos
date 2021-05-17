@@ -12,8 +12,8 @@ from loguru import logger
 from ouranos.settings import Settings
 from ouranos.dpy.command import HelpCommand
 from ouranos.dpy.context import Context
-from ouranos.utils import database as db
-from ouranos.utils.constants import TICK_RED, PINGBOI
+from ouranos.utils import db
+from ouranos.utils.emojis import TICK_RED, PINGBOI
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError
 
 
@@ -108,6 +108,15 @@ class Ouranos(commands.AutoShardedBot):
 
         logger.info("Closing connection to discord.")
         await super().close()
+
+    def get_cog(self, name):
+        cog = super().get_cog(name)
+        if cog:
+            return cog
+        for c in self.cogs.keys():
+            if name == c.lower():
+                return self.get_cog(c)
+        return None
 
     async def load_cog(self, module, cog_name):
         # TODO implement async load_cog

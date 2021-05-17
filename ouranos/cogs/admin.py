@@ -1,26 +1,22 @@
 import io
 import os
-
-import discord
 import asyncio
+import time
+import contextlib
+import inspect
 import subprocess
 import traceback
 import textwrap
-import contextlib
-import inspect
-import time
+import discord
 
-from discord.ext import commands
-from contextlib import redirect_stdout
-from loguru import logger
 from tortoise import Tortoise
 
-from ouranos.cog import Cog
+from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
-from ouranos.utils import database as db
+from ouranos.utils import db
 from ouranos.utils.checks import bot_admin
 from ouranos.utils.converters import A_OR_B
-from ouranos.utils.helpers import TableFormatter
+from ouranos.utils.format import TableFormatter
 
 
 class AddOrRemove(A_OR_B):
@@ -297,7 +293,7 @@ class Admin(Cog):
             stdout = io.StringIO()
 
             try:
-                with redirect_stdout(stdout):
+                with contextlib.redirect_stdout(stdout):
                     result = executor(code, variables)
                     if inspect.isawaitable(result):
                         result = await result
@@ -379,6 +375,13 @@ class Admin(Cog):
     async def cat(self, ctx, file):
         """Upload the contents of a text file to Discord."""
         await ctx.send(file=discord.File(file))
+
+    # TODO: hot-reload functionality for imported modules
+    # @command(aliases=['reload-module'])
+    # @bot_admin()
+    # async def reload_module(self, module):
+    #     """Hot-reload an imported module."""
+    #     pass
 
 
 def setup(bot):

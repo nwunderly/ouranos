@@ -1,20 +1,17 @@
-import datetime
 import sys
 import time
+import datetime
 import discord
 import psutil
 import pygit2
 import itertools
 
-from discord.ext import commands
-from loguru import logger
-
-from ouranos.cog import Cog
 from ouranos.settings import Settings
-from ouranos.dpy.command import command, group
-from ouranos.utils.helpers import approximate_timedelta
+from ouranos.dpy.cog import Cog
+from ouranos.dpy.command import command
+from ouranos.utils.format import approximate_timedelta
 from ouranos.utils.checks import is_bot_admin, server_mod
-from ouranos.utils.constants import TICK_GREEN, PINGBOI, BOTDEV, PYTHON, GIT, CHART, STONKS, NOT_STONKS
+from ouranos.utils.emojis import TICK_GREEN, PINGBOI, BOTDEV, PYTHON, GIT, CHART, STONKS, NOT_STONKS
 from ouranos.utils.stats import Stats
 
 
@@ -23,7 +20,7 @@ from ouranos.utils.stats import Stats
 
 
 class General(Cog):
-    """General bot utilities."""
+    """General bot commands."""
     def __init__(self, bot):
         self.bot = bot
         self.bot.help_command.cog = self
@@ -128,9 +125,9 @@ class General(Cog):
             f"{STONKS} {(_c := Stats.commands_used):,} command{(_s := s(_c))} {'have' if _s else 'has'} been used.\n"
             f"{NOT_STONKS} I have sent {(_l := Stats.logs_sent):,} modlog message{s(_l)} in {(_g := Stats.unique_guilds())} guild{s(_g)}.")
 
-    @command()
+    @command(name='cleanup')
     @server_mod()
-    async def cleanup(self, ctx, limit: int = 30):
+    async def _cleanup(self, ctx, limit: int = 30):
         """Cleans up the bot's messages."""
         p = tuple([self.bot.user.mention, f'<@!{self.bot.user.id}>', await self.bot.prefix(ctx.message)])
 
