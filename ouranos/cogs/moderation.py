@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import re
 import time
@@ -17,6 +16,7 @@ from ouranos.dpy.command import command, group
 from ouranos.utils import checks
 from ouranos.utils import db
 from ouranos.utils import modlog
+from ouranos.utils.better_argparse import Parser
 from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.emojis import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, EMOJI_MASSBAN
 from ouranos.utils.converters import Duration, UserID, MentionOrUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
@@ -56,11 +56,6 @@ async def try_send(user, message):
         return True
     except discord.DiscordException:
         return False
-
-
-class Parser(argparse.ArgumentParser):
-    def error(self, message):
-        raise ModerationError(message.capitalize())
 
 
 class Moderation(Cog):

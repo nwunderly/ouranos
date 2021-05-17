@@ -1,22 +1,25 @@
+import io
 import asyncio
 import time
 import discord
+import shlex
 
 from collections import defaultdict, deque
 from discord.ext import commands, tasks
 from loguru import logger
+from tortoise.queryset import Q
 
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
 from ouranos.utils import db
 from ouranos.utils import modlog
+from ouranos.utils.better_argparse import Parser
 from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.checks import server_mod, server_admin
 from ouranos.utils.converters import UserID, Duration, InfractionID
 from ouranos.utils.emojis import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
-from ouranos.utils.format import approximate_timedelta, exact_timedelta, WEEK
-
+from ouranos.utils.format import approximate_timedelta, exact_timedelta, WEEK, TableFormatter
 
 LOGS = {
     'warn': modlog.log_warn,
@@ -416,7 +419,7 @@ class Modlog(Cog):
         return {
             'infraction_id': infraction.infraction_id,
             'user_id': infraction.user_id,
-            'mod_id': infraction.message_id,
+            'mod_id': infraction.mod_id,
             'message_id': infraction.message_id,
             'type': infraction.type,
             'reason': infraction.reason,
@@ -552,6 +555,124 @@ class Modlog(Cog):
         await db.edit_record(history)  # runs save() and ensures cache is updated
         user = (await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id)) or infraction.user_id
         await ctx.send(f"{TICK_GREEN} Removed infraction #{infraction_id} ({infraction.type}) for user {user}.")
+
+    @infraction.command(name='search')
+    @server_mod()
+    async def infraction_search(self, ctx, *, args):
+        """Advanced infraction database search command.
+
+        This command uses a powerful "command line" syntax.
+        If a value has spaces it must be quoted.
+
+        Returns every infraction found matching all criteria
+        unless the `--or` flag is passed, in which case it
+        returns every infraction matching any criteria.
+
+        The following options are valid. Any arguments passed
+        without an option are treated as keywords to search.
+        Keywords are searched for as individual substrings in
+        each infraction's reason and note.
+
+        `--user`: A mention or name of the user to query.
+        `--mod`: A mention or name of the mod to query.
+        `--type`: The type of infraction to query by.
+        `--active`: Bool indicating whether to search for active
+            or inactive infractions.
+
+        Flag options (no arguments):
+
+        `--or`: Use logical OR for all options.
+        `--not`: Use logical NOT for all options.
+        `--count`: Count the number of infractions instead of
+            returning as a formatted table.
+        """
+        def infraction_type_converter(t):
+            if t.lower() in ['warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
+                return t
+            else:
+                raise OuranosCommandError('Invalid infraction type.')
+
+        parser = Parser(add_help=False, allow_abbrev=False)
+        parser.add_argument('keywords', nargs='*')
+        parser.add_argument('--user')
+        parser.add_argument('--mod')
+        parser.add_argument('--type', type=infraction_type_converter)
+        parser.add_argument('--active', type=commands.core._convert_to_bool, default=None)
+        parser.add_argument('--or', action='store_true', dest='_or')
+        parser.add_argument('--not', action='store_true', dest='_not')
+        parser.add_argument('--count', action='store_true')
+
+        try:
+            args = parser.parse_args(shlex.split(args))
+        except Exception as e:
+            raise OuranosCommandError(str(e))
+
+        query = []
+
+        if args.keywords:
+            query.append(Q(
+                *[Q(reason__contains=kw, note__contains=kw, join_type='OR') for kw in args.keywords],
+                join_type='OR'
+            ))
+
+        if args.user:
+            converter = UserID()
+            try:
+                user = await converter.convert(ctx, args.user)
+            except Exception as e:
+                raise OuranosCommandError(str(e))
+            query.append(Q(user_id=user.id))
+
+        if args.mod:
+            converter = UserID()
+            try:
+                mod = await converter.convert(ctx, args.mod)
+            except Exception as e:
+                await ctx.send(str(e))
+                return
+            query.append(Q(mod_id=mod.id))
+
+        if args.type:
+            query.append(Q(type=args.type))
+
+        if args.active is not None:
+            query.append(Q(active=args.active))
+
+        the_real_query = Q(*query, join_type='OR' if args._or else 'AND')
+
+        if args._not:
+            the_real_query.negate()
+
+        the_real_query = Q(the_real_query, guild_id=ctx.guild.id)
+        infractions = db.Infraction.filter(the_real_query)
+
+        if args.count:
+            results = await infractions.count()
+            await ctx.send(f"I found {results} infractions.")
+
+        else:
+            start = time.perf_counter()
+            results = await infractions.all()
+            dt = (time.perf_counter() - start) * 1000.0
+            rows = len(results)
+            if rows == 0:
+                return await ctx.send(f'`{dt:.2f}ms: {results}`')
+
+            results = sorted(results, key=lambda i: i.infraction_id)
+            results = [self.infraction_to_dict(i) for i in results]
+            headers = list(results[0].keys())
+            table = TableFormatter()
+            table.set_columns(headers)
+            table.add_rows(list(r.values()) for r in results)
+            render = table.render()
+
+            _s = 's' if rows != 1 else ''
+            fmt = f'```\n{render}\n```\n*Returned {rows} row{_s} in {dt:.2f}ms*'
+            if len(fmt) > 2000:
+                fp = io.BytesIO(fmt.encode('utf-8'))
+                await ctx.send('Too many results...', file=discord.File(fp, 'results.txt'))
+            else:
+                await ctx.send(fmt)
 
     async def _get_history(self, guild_id, user_id):
         history = await modlog.get_history(guild_id, user_id)
