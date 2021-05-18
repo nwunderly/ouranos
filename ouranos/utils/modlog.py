@@ -2,6 +2,8 @@ import asyncio
 import re
 import time
 
+import discord
+
 from ouranos.bot import Ouranos
 from ouranos.utils import db
 from ouranos.utils.emojis import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN
@@ -256,7 +258,11 @@ async def edit_infraction_and_message(infraction, **kwargs):
         k1['note'] = k2['note'] = f"{n} {edit}"
 
     i = await db.edit_record(infraction, **k1)
-    m = await edit_log_message(infraction, **k2)
+    try:
+        m = await edit_log_message(infraction, **k2)
+    except discord.HTTPException as e:
+        raise OuranosCommandError(f"I edited the infraction, but was unable to edit the modlog message"
+                                  f" ({e.text.lower().capitalize()}).")
     return i, m
 
 
@@ -291,7 +297,11 @@ async def edit_infractions_and_messages_bulk(infractions, **kwargs):
         k1['note'] = k2['note'] = f"{n} {edit}"
 
     i = await db.edit_records_bulk(infractions, **k1)
-    m = await edit_log_message(inf, **k2)
+    try:
+        m = await edit_log_message(inf, **k2)
+    except discord.HTTPException as e:
+        raise OuranosCommandError(f"I edited the infractions, but was unable to edit the modlog message"
+                                  f" ({e.text.lower().capitalize()}).")
     return i, m
 
 

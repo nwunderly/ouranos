@@ -399,7 +399,7 @@ class Modlog(Cog):
             except discord.NotFound:
                 pass
 
-        raise ModlogMessageNotFound(infraction_id, ctx.prefix)
+        raise ModlogMessageNotFound(infraction_id, ctx)
 
     @group(aliases=['case', 'inf'])
     @server_mod()
@@ -407,6 +407,34 @@ class Modlog(Cog):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
         message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.jump_url)
+
+    @infraction.command(name='info')
+    @server_mod()
+    async def infraction_info(self, ctx, infraction_id: InfractionID):
+        """View the database entry for an infraction."""
+        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
+        if infraction.ends_at:
+            dt_tot = infraction.ends_at - infraction.created_at
+            dt_rem = infraction.ends_at - time.time()
+            duration = f"Duration: {exact_timedelta(dt_tot)}\n" if dt_tot else ""
+            remaining = f"Remaining: {exact_timedelta(dt_rem)}\n" if dt_rem > 0 else ""
+        else:
+            duration = remaining = ""
+
+        user = await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id) or infraction.user_id
+        mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+        dt_since = approximate_timedelta(time.time() - infraction.created_at)
+
+        await ctx.send(
+            f"Infraction #{infraction.infraction_id} ({infraction.type}, {dt_since} ago):```\n"
+            f"User: {user}\n"
+            f"Moderator: {mod}\n"
+            f"{duration}"
+            f"{remaining}"
+            f"Reason: {infraction.reason}\n"
+            f"Note: {infraction.note}\n"
+            f"Active: {infraction.active}\n"
+            f"```")
 
     @infraction.command(name='view')
     @server_mod()
@@ -429,40 +457,13 @@ class Modlog(Cog):
             'active': infraction.active
         }
 
-    @infraction.command(name='json')
+    @infraction.command(name='raw')
     @server_mod()
-    async def infraction_json(self, ctx, infraction_id: InfractionID):
+    async def infraction_raw(self, ctx, infraction_id: InfractionID):
         """View the database entry for an infraction in JSON format."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
         serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
-
-    @infraction.command(name='info')
-    @server_mod()
-    async def infraction_info(self, ctx, infraction_id: InfractionID):
-        """View the database entry for an infraction."""
-        infraction = await self._get_infraction(ctx.guild.id, infraction_id)
-        if infraction.ends_at:
-            dt_tot = infraction.ends_at - infraction.created_at
-            dt_rem = infraction.ends_at - time.time()
-            duration = f"Duration: {exact_timedelta(dt_tot)}\n" if dt_tot else ""
-            remaining = f"Remaining: {exact_timedelta(dt_rem)}\n" if dt_rem > 0 else ""
-        else:
-            duration = remaining = ""
-
-        user = await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id) or infraction.user_id
-        mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
-
-        await ctx.send(
-            f"Infraction #{infraction.infraction_id} ({infraction.type}):```\n"
-            f"User: {user}\n"
-            f"Moderator: {mod}\n"
-            f"{duration}"
-            f"{remaining}"
-            f"Reason: {infraction.reason}\n"
-            f"Note: {infraction.note}\n"
-            f"Active: {infraction.active}\n"
-            f"```")
 
     @command(aliases=['edit-reason', 'editr'])
     @server_mod()
@@ -693,31 +694,26 @@ class Modlog(Cog):
             h_by_type.update({i: _type for i in getattr(history, _type)})
         infraction_ids = sorted(h_by_type.keys(), reverse=True)
         infractions = [await modlog.get_infraction(ctx.guild.id, i) for i in infraction_ids]
-        recent = []
-        for infraction in infractions:
-            if infraction.created_at - now < WEEK:
-                recent.append(infraction)
 
-        if recent:
-            _recent = recent[:5]
-            s += f"\nRecent infractions for {user} (showing {len(_recent)}/{len(recent)}):```\n"
+        if infractions:
+            _recent = infractions[:5]
+            s += f"Recent infractions for {user} (showing {len(_recent)}/{len(infractions)}):```\n"
             for infraction in _recent:
                 mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
                 dt = approximate_timedelta(now - infraction.created_at)
                 dt_tot = exact_timedelta(infraction.ends_at - infraction.created_at) if infraction.ends_at else None
                 dt_rem = approximate_timedelta(infraction.ends_at - now) if infraction.ends_at else None
                 active = 'active ' if infraction.active else ''
-                s += f"#{infraction.infraction_id}: {active}{infraction.type} by {mod} (about {dt} ago)\n"
+                s += f"#{infraction.infraction_id}: {active}{infraction.type} by {mod} ({dt} ago)\n"
                 if dt_tot:
-                    rem = f" (about {dt_rem} remaining)" if infraction.active else ''
+                    rem = f" ({dt_rem} remaining)" if infraction.active else ''
                     s += f"\tduration: {dt_tot}{rem}\n"
                 if infraction.reason:
                     s += f"\treason: {infraction.reason}\n"
             s += "```"
 
         else:
-            if not recent:
-                s += f"\nNo recent infractions."
+            s += f"No infractions for {user}."
 
         await ctx.send(s)
 
@@ -737,10 +733,10 @@ class Modlog(Cog):
             raise UnexpectedError(f'{e.__class__.__name__}: {e}')
         await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
 
-    @history.command(name='all')
+    @history.command(name='raw')
     @server_mod()
-    async def history_all(self, ctx, *, user: UserID):
-        """View a user's complete infraction history."""
+    async def history_raw(self, ctx, *, user: UserID):
+        """View the database entry for a user's infraction history."""
         history = await self._get_history(ctx.guild.id, user.id)
         await ctx.send(
             f"Infraction history for {user}:```\n"

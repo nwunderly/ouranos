@@ -802,7 +802,7 @@ class Moderation(Cog):
     @checks.server_mod()
     async def rm_user(self, ctx, user: UserID, limit: int):
         """Remove messages by a particular user."""
-        await self._do_removal(ctx, limit, lambda m: m.author == user)
+        await self._do_removal(ctx, limit, lambda m: m.author.id == user.id)
 
     @remove.command(name='channel', aliases=['in'])
     @checks.server_mod()
