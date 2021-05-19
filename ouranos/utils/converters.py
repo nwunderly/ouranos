@@ -193,7 +193,7 @@ class Reason(Converter):
     async def convert(self, ctx, argument):
         split = argument.split('--', 1)
         if len(split) == 1:
-            reason, note = argument, None
+            reason, note = argument.strip(), None
         else:
             reason, note = (x.strip() for x in split)
 
