@@ -202,7 +202,7 @@ class Reason(Converter):
             reason_max = 512 - len(r) + len(argument)
             raise BadArgument(f'Reason is too long ({len(argument)}/{reason_max})')
 
-        return reason, note, r
+        return reason or None, note or None, r
 
     @classmethod
     def format_reason(cls, ctx, reason=None, note=None):
@@ -212,8 +212,8 @@ class Reason(Converter):
 class RequiredReason(Reason):
     async def convert(self, ctx, argument):
         reason, note, r = await super().convert(ctx, argument)
-        if not reason:
-            raise BadArgument('a reason is required for this command.')
+        if not (reason or note):
+            raise BadArgument('a reason or note is required for this command.')
         return reason, note, r
 
 
@@ -240,6 +240,18 @@ class A_OR_B(Converter):
             raise BadArgument(f"Expected `{self.OPTION_A}` or `{self.OPTION_B}`, got `{argument}`.")
 
 
+class Options(Converter):
+    OPTIONS = {}
+
+    async def convert(self, ctx, argument):
+        a = argument.lower()
+        if a in self.OPTIONS:
+            return self.OPTIONS[a]
+        else:
+            options = ', '.join('`' + str(o) + '`' for o in self.OPTIONS)
+            raise BadArgument(f"Expected one of ({options}), got `{argument}`.")
+
+
 class Guild(Converter):
     async def convert(self, ctx, argument):
         if argument == '.':
@@ -254,10 +266,6 @@ class TextChannel(Converter):
             return ctx.channel
         else:
             return await commands.TextChannelConverter().convert(ctx, argument)
-
-
-# TODO: more advanced query tools
-# infraction_id_pattern = re.compile(r"(?:(?:(?P<what>user|mod)=)?(?P<who>\d+|me):)?(?P<id>-?\d+)")
 
 
 class InfractionID(Converter):
@@ -291,6 +299,6 @@ class InfractionIDRange(Converter):
         if start >= end:
             raise BadArgument("Invalid infraction id range.")
         if end - start > 100:
-            raise BadArgument("That infraction id range is too large!")
+            raise BadArgument("That infraction id range is too large! (limit 100)")
 
-        return list(range(start, end+1))
+        return start, end

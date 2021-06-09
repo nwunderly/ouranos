@@ -261,22 +261,23 @@ async def edit_infraction_and_message(infraction, **kwargs):
     try:
         m = await edit_log_message(infraction, **k2)
     except discord.HTTPException as e:
-        raise OuranosCommandError(f"I edited the infraction, but was unable to edit the modlog message"
-                                  f" ({e.text.lower().capitalize()}).")
+        raise OuranosCommandError(f"I edited the infraction, but was unable to edit the modlog message "
+                                  f"({e.text.lower().capitalize()}).")
     return i, m
 
 
-async def edit_infractions_and_messages_bulk(infractions, **kwargs):
+async def edit_infractions_and_messages_bulk(infractions, linked=True, **kwargs):
     """Edits a set of infractions. All must be linked to the same log message."""
     inf = infractions[0]
 
     for i in infractions:
-        if i.message_id != inf.message_id:
-            raise OuranosCommandError("Infraction message_id mismatch during bulk edit.")
-        elif i.type != inf.type:
+        if i.type != inf.type:
             raise OuranosCommandError("Infraction type mismatch during bulk edit.")
-        elif i.created_at != inf.created_at:
-            raise OuranosCommandError("Infraction created_at mismatch during bulk edit.")
+        if linked:
+            if i.message_id != inf.message_id:
+                raise OuranosCommandError("Infraction message_id mismatch during bulk edit.")
+            elif i.created_at != inf.created_at:
+                raise OuranosCommandError("Infraction created_at mismatch during bulk edit.")
 
     if 'edited_by' in kwargs:
         edit = f"(edited by {kwargs.pop('edited_by')})"
@@ -297,12 +298,37 @@ async def edit_infractions_and_messages_bulk(infractions, **kwargs):
         k1['note'] = k2['note'] = f"{n} {edit}"
 
     i = await db.edit_records_bulk(infractions, **k1)
-    try:
-        m = await edit_log_message(inf, **k2)
-    except discord.HTTPException as e:
-        raise OuranosCommandError(f"I edited the infractions, but was unable to edit the modlog message"
-                                  f" ({e.text.lower().capitalize()}).")
-    return i, m
+
+    if linked:
+        try:
+            m = await edit_log_message(inf, **k2)
+        except discord.HTTPException as e:
+            raise OuranosCommandError(f"I edited the infractions, but was unable to edit the modlog message "
+                                      f"({e.text.lower()}).")
+        return i, m
+
+    # edit a batch of messages
+    else:
+        count = 0
+        skip = set()
+        for inf in infractions:
+            if inf.infraction_id in skip:
+                continue
+
+            # make sure we only edit each message once
+            if inf.bulk_infraction_id_range:
+                start, end = inf.bulk_infraction_id_range
+                for _i_id in range(start, end+1):
+                    skip.add(_i_id)
+
+            # actually edit now
+            try:
+                await edit_log_message(inf, **k2)
+                count += 1
+            except discord.HTTPException as e:
+                raise OuranosCommandError(f"I edited the infractions, but was unable to edit the modlog message "
+                                          f"for #{inf.infraction_id} ({e.text.lower()}).")
+        return i, count
 
 
 async def has_active_infraction(guild_id, user_id, type):
@@ -409,7 +435,8 @@ async def log_mass_ban(guild, users, mod, reason, note, duration):
     await new_infractions_bulk(guild.id, user_ids, mod.id, 'ban', reason, note, duration, True, infraction_ids)
 
     duration = exact_timedelta(duration) if duration else None
-    content = format_mass_action_log_message(EMOJI_MASSBAN, 'USERS MASS-BANNED', (infraction_ids[0], infraction_ids[-1]), duration, len(users), mod, reason, note)
+    content = format_mass_action_log_message(
+        EMOJI_MASSBAN, 'USERS MASS-BANNED', (infraction_ids[0], infraction_ids[-1]), duration, len(users), mod, reason, note)
     message = await new_log_message(guild, content)
 
     await db.Infraction.filter(infraction_id__in=infraction_ids).update(message_id=message.id)
@@ -422,7 +449,8 @@ async def log_mass_mute(guild, users, mod, reason, note, duration):
     await new_infractions_bulk(guild.id, user_ids, mod.id, 'mute', reason, note, duration, True, infraction_ids)
 
     duration = exact_timedelta(duration) if duration else None
-    content = format_mass_action_log_message(EMOJI_MUTE, 'USERS MASS-MUTED', (infraction_ids[0], infraction_ids[-1]), duration, len(users), mod, reason, note)
+    content = format_mass_action_log_message(
+        EMOJI_MUTE, 'USERS MASS-MUTED', (infraction_ids[0], infraction_ids[-1]), duration, len(users), mod, reason, note)
     message = await new_log_message(guild, content)
 
     await db.Infraction.filter(infraction_id__in=infraction_ids).update(message_id=message.id)

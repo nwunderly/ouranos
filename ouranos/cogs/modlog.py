@@ -16,10 +16,10 @@ from ouranos.utils import modlog
 from ouranos.utils.better_argparse import Parser
 from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.converters import UserID, Duration, InfractionID
+from ouranos.utils.converters import UserID, Duration, InfractionID, InfractionIDRange, Options
 from ouranos.utils.emojis import TICK_GREEN
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
-from ouranos.utils.format import approximate_timedelta, exact_timedelta, WEEK, TableFormatter
+from ouranos.utils.format import approximate_timedelta, exact_timedelta, TableFormatter
 
 LOGS = {
     'warn': modlog.log_warn,
@@ -56,6 +56,17 @@ class FetchedAuditLogEntry:
         self.guild_id = guild_id
         self.key = key
         self.the_real_entry = the_real_entry
+
+
+class ReasonNoteDuration(Options):
+    OPTIONS = {
+        'reason': 'reason',
+        'r': 'reason',
+        'note': 'note',
+        'n': 'note',
+        'duration': 'duration',
+        'd': 'duration'
+    }
 
 
 class Modlog(Cog):
@@ -540,6 +551,32 @@ class Modlog(Cog):
         else:
             _, message = await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=ctx.author)
             await ctx.send(message.jump_url)
+
+    @group(aliases=['bulk-edit', 'bedit'])
+    @server_admin()
+    async def bulk_edit(self, ctx, field: ReasonNoteDuration, infraction_id_range: InfractionIDRange, *, new_value):
+        """Edit a range of infractions simultaneously. Intended for infractions not already linked to a single a mass-action."""
+        start, end = infraction_id_range
+        await ctx.confirm_action(f"This will edit {end - start + 1} infractions and all associated messages. Are you sure? (y/n)")
+        infraction_ids = list(range(start, end + 1))
+        infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
+
+        if field == 'duration':
+            new_value = await Duration().convert(ctx, new_value)
+
+            # make sure these infractions are valid
+            for infraction in infractions:
+                if infraction.type not in ('mute', 'ban'):
+                    raise OuranosCommandError("Editing duration only works for mute and ban infractions.")
+
+        else:  # strip reason/note of leading/trailing whitespace
+            new_value = new_value.strip()
+
+        m = await ctx.send("Editing...")
+        kwargs = {field: new_value, 'edited_by': ctx.author}
+        i_list, m_count = await modlog.edit_infractions_and_messages_bulk(infractions, linked=False, **kwargs)
+        i_count = len(i_list)
+        await m.edit(content=f"Edited {i_count} infractions and {m_count} messages.")
 
     @infraction.command(name='delete')
     @server_admin()

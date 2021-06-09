@@ -134,11 +134,14 @@ class Moderation(Cog):
         if await checks.is_server_mod(member):
             raise ModActionOnMod
 
-        if (not config) or config.dm_on_infraction:
+        if not config or config.dm_on_infraction and reason:
             message = format_alert_dm(guild, user, 'warn', reason=reason)
             delivered = await try_send(user, message)
         else:
             delivered = None
+
+        if note and not reason:
+            reason = 'Silent warning, user was not messaged.'
 
         await LogEvent('warn', guild, user, mod, reason, note, None).dispatch()
         return delivered
@@ -167,7 +170,7 @@ class Moderation(Cog):
         await member.add_roles(role, reason=audit_reason)
 
         # notify the user if the setting is enabled
-        if (not config) or config.dm_on_infraction:
+        if not config or config.dm_on_infraction:
             message = format_alert_dm(guild, user, 'mute', reason=reason, duration=duration)
             delivered = await try_send(user, message)
         else:
@@ -291,7 +294,7 @@ class Moderation(Cog):
         await member.remove_roles(role, reason=audit_reason)
 
         # notify the user if the setting is enabled
-        if (not config) or config.dm_on_infraction:
+        if not config or config.dm_on_infraction:
             message = format_alert_dm(guild, user, 'unmute', reason=reason)
             delivered = await try_send(user, message)
         else:
@@ -322,7 +325,7 @@ class Moderation(Cog):
 
         # notify the user if the setting is enabled
         # this one has to be done before kicking (for obvious reasons)
-        if (not config) or config.dm_on_infraction:
+        if not config or config.dm_on_infraction:
             message = format_alert_dm(guild, user, 'kick', reason=reason)
             delivered = await try_send(user, message)
         else:
@@ -351,7 +354,7 @@ class Moderation(Cog):
 
         # notify the user if the setting is enabled
         # this one has to be done before banning (for obvious reasons)
-        if (not config) or config.dm_on_infraction:
+        if not config or config.dm_on_infraction:
             if member:
                 message = format_alert_dm(guild, user, 'ban', reason=reason, duration=duration)
                 delivered = await try_send(user, message)
@@ -580,7 +583,8 @@ class Moderation(Cog):
         """
         reason, note, _ = reason or (None, None, None)
         delivered = await self._do_warn(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note)
-        await ctx.send(f"{THUMBS_UP} Warned **{user}**. {notified(delivered)}")
+        warned = 'Warned' if reason else 'Silently warned'
+        await ctx.send(f"{THUMBS_UP} {warned} **{user}**. {notified(delivered)}")
 
     @command()
     @checks.server_mod()
