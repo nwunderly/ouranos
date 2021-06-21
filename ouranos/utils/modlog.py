@@ -191,7 +191,8 @@ def format_edited_log_message(content, **kwargs):
     pattern = re.compile(r'\*\*(\w+):\*\* (.*)')
     for line in split:
         match = pattern.match(line)
-        entry[match.group(1).lower()] = match.group(2)
+        if match:
+            entry[match.group(1).lower()] = match.group(2)
 
     entry.update(kwargs)
     return first_line + "".join(

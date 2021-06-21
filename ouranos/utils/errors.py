@@ -62,7 +62,7 @@ class InfractionNotFound(ModlogError):
 class ModlogMessageNotFound(ModlogError):
     def __init__(self, infraction_id, ctx=None):
         p = ctx.prefix if ctx else '?'
-        cmd = ctx.invoked_with if ctx else 'infraction'
+        cmd = ctx.invoked_parents[0] if ctx else 'infraction'
         super().__init__(f"I couldn't find a message for infraction #{infraction_id}. "
                          f"Try `{p}{cmd} info {infraction_id}` instead.")
 
