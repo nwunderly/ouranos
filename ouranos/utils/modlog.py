@@ -6,7 +6,8 @@ import discord
 
 from ouranos.bot import Ouranos
 from ouranos.utils import db
-from ouranos.utils.emojis import EMOJI_WARN, EMOJI_MUTE, EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN
+from ouranos.utils.emojis import EMOJI_NOTE, EMOJI_WARN, EMOJI_MUTE, \
+    EMOJI_UNMUTE, EMOJI_KICK, EMOJI_BAN, EMOJI_UNBAN, EMOJI_MASSBAN, BEE
 from ouranos.utils.format import exact_timedelta
 from ouranos.utils.errors import OuranosCommandError
 
@@ -91,7 +92,7 @@ async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration
         active=active,
     )
     history, _ = await db.History.get_or_create(
-        {'warn': [], 'mute': [], 'unmute': [], 'kick': [], 'ban': [], 'unban': [], 'active': []},
+        {'note': [], 'warn': [], 'mute': [], 'unmute': [], 'kick': [], 'ban': [], 'unban': [], 'active': []},
         guild_id=guild_id, user_id=user_id
     )
     history.__getattribute__(type).append(infraction_id)
@@ -127,7 +128,7 @@ async def new_infractions_bulk(guild_id, user_ids, mod_id, type, reason, note, d
     for i, user_id in enumerate(user_ids):
         infraction_id = infraction_ids[i]
         history, _ = await db.History.get_or_create(
-            {'warn': [], 'mute': [], 'unmute': [], 'kick': [], 'ban': [], 'unban': [], 'active': []},
+            {'note': [], 'warn': [], 'mute': [], 'unmute': [], 'kick': [], 'ban': [], 'unban': [], 'active': []},
             guild_id=guild_id, user_id=user_id
         )
         history.__getattribute__(type).append(infraction_id)
@@ -175,7 +176,7 @@ def format_log_message(emoji, title, infraction_id, duration, user, mod, reason,
         f"**Duration:** {duration}\n" if duration else "",
         f"**Moderator:** {mod}\n",
         f"**Reason:** {reason}\n",
-        f"**Note:** {note}\n",
+        f"**Note:** {note}\n" if note else "",
     ]
     return "".join(lines)
 
@@ -361,6 +362,13 @@ async def deactivate_infractions(guild_id, user_id, type):
     return count
 
 
+async def log_note(guild, user, mod, reason, _, __):
+    infraction = await new_infraction(guild.id, user.id, mod.id, 'note', reason, None, None, False)
+    content = format_log_message(EMOJI_NOTE, 'NOTE CREATED', infraction.infraction_id, None, user, mod, reason, None)
+    message = await new_log_message(guild, content)
+    await db.edit_record(infraction, message_id=message.id)
+
+
 async def log_warn(guild, user, mod, reason, note, _):
     infraction = await new_infraction(guild.id, user.id, mod.id, 'warn', reason, note, None, False)
     content = format_log_message(EMOJI_WARN, 'MEMBER WARNED', infraction.infraction_id, None, user, mod, reason, note)
@@ -425,6 +433,11 @@ async def log_ban_expire(guild, user, infraction_id):
 
 async def log_mute_persist(guild, user, infraction_id):
     content = format_small_log_message(EMOJI_MUTE, 'Mute persisted', user, infraction_id)
+    await new_log_message(guild, content)
+
+
+async def log_beemo_ban(guild, user, _):
+    content = f"{BEE} {user} (`{user.id}`) has been banned by Beemo."
     await new_log_message(guild, content)
 
 

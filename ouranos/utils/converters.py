@@ -212,8 +212,8 @@ class Reason(Converter):
 class RequiredReason(Reason):
     async def convert(self, ctx, argument):
         reason, note, r = await super().convert(ctx, argument)
-        if not (reason or note):
-            raise BadArgument('a reason or note is required for this command.')
+        if not reason:
+            raise BadArgument('a reason is required for this command.')
         return reason, note, r
 
 

@@ -131,6 +131,7 @@ class History(Model):
     ban = IntArrayField()
     unban = IntArrayField()
     active = IntArrayField()
+    note = IntArrayField()  # added 6/20/21
 
     class Meta:
         unique_together = ("guild_id", "user_id")

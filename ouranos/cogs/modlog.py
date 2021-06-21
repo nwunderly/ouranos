@@ -18,17 +18,19 @@ from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
 from ouranos.utils.checks import server_mod, server_admin
 from ouranos.utils.converters import UserID, Duration, InfractionID, InfractionIDRange, Options
 from ouranos.utils.emojis import TICK_GREEN
-from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
+from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, \
+    InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
 from ouranos.utils.format import approximate_timedelta, exact_timedelta, TableFormatter
 
 LOGS = {
+    'note': modlog.log_note,
     'warn': modlog.log_warn,
     'mute': modlog.log_mute,
     'unmute': modlog.log_unmute,
     'kick': modlog.log_kick,
     'ban': modlog.log_ban,
     'forceban': modlog.log_forceban,
-    'unban': modlog.log_unban,
+    'unban': modlog.log_unban
 }
 
 
@@ -36,12 +38,13 @@ SMALL_LOGS = {
     'mute-expire': modlog.log_mute_expire,
     'ban-expire': modlog.log_ban_expire,
     'mute-persist': modlog.log_mute_persist,
+    'beemo-ban': modlog.log_beemo_ban
 }
 
 
 MASS_ACTION_LOGS = {
     'ban': modlog.log_mass_ban,
-    'mute': modlog.log_mass_mute,
+    'mute': modlog.log_mass_mute
 }
 
 
@@ -107,6 +110,8 @@ class Modlog(Cog):
             return None, None
         s = reason.split('--', 1)
         reason, note = (s[0], s[1]) if len(s) == 2 else (reason, None)
+        reason = reason.strip() if reason else None
+        note = note.strip() if note else None
         return reason, note
 
     @tasks.loop(seconds=10)
@@ -219,9 +224,10 @@ class Modlog(Cog):
             duration, reason = self.maybe_duration_from_audit_reason(entry.reason)
             reason, note = self.maybe_note_from_audit_reason(reason)
 
-        if (moderator == self.bot.user  # action was done by me
-                or (moderator and moderator.id == 515067662028636170)):  # Beemo (special support coming soontm)
+        if moderator == self.bot.user:  # action was done by me
             return
+        elif moderator and moderator.id == 515067662028636170:  # Beemo (special support coming soontm)
+            await SmallLogEvent('beemo_ban', guild, user, None).dispatch()
 
         # disable currently-active ban(s) for this user in this guild, if there are any
         await self.bot.run_in_background(
@@ -476,9 +482,9 @@ class Modlog(Cog):
         serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
 
-    @command(aliases=['edit-reason', 'editr'])
+    @command(aliases=['reason', 'edit-reason'])
     @server_mod()
-    async def reason(self, ctx, infraction_id: InfractionID, *, new_reason):
+    async def editr(self, ctx, infraction_id: InfractionID, *, new_reason):
         """Edit the reason for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
 
@@ -497,9 +503,9 @@ class Modlog(Cog):
             _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason, edited_by=ctx.author)
             await ctx.send(message.jump_url)
 
-    @command(aliases=['edit-note', 'editn'])
+    @command(aliases=['edit-note'])
     @server_mod()
-    async def note(self, ctx, infraction_id: InfractionID, *, new_note):
+    async def editn(self, ctx, infraction_id: InfractionID, *, new_note):
         """Edit the note for an infraction."""
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
 
@@ -518,9 +524,9 @@ class Modlog(Cog):
             _, message = await modlog.edit_infraction_and_message(infraction, note=new_note, edited_by=ctx.author)
             await ctx.send(message.jump_url)
 
-    @command(aliases=['edit-duration', 'editd'])
+    @command(aliases=['edit-duration'])
     @server_mod()
-    async def duration(self, ctx, infraction_id: InfractionID, new_duration: Duration):
+    async def editd(self, ctx, infraction_id: InfractionID, new_duration: Duration):
         """Edit the duration of an active infraction. Useful if the member is no longer in the server.
 
         Note: this only works for mute and ban infractions.
@@ -552,9 +558,9 @@ class Modlog(Cog):
             _, message = await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=ctx.author)
             await ctx.send(message.jump_url)
 
-    @group(aliases=['bulk-edit', 'bedit'])
+    @group(aliases=['bulk-edit'])
     @server_admin()
-    async def bulk_edit(self, ctx, field: ReasonNoteDuration, infraction_id_range: InfractionIDRange, *, new_value):
+    async def bedit(self, ctx, field: ReasonNoteDuration, infraction_id_range: InfractionIDRange, *, new_value):
         """Edit a range of infractions simultaneously. Intended for infractions not already linked to a single a mass-action."""
         start, end = infraction_id_range
         await ctx.confirm_action(f"This will edit {end - start + 1} infractions and all associated messages. Are you sure? (y/n)")
@@ -625,7 +631,7 @@ class Modlog(Cog):
             returning as a formatted table.
         """
         def infraction_type_converter(t):
-            if t.lower() in ['warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
+            if t.lower() in ['note', 'warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
                 return t
             else:
                 raise OuranosCommandError('Invalid infraction type.')
@@ -727,7 +733,7 @@ class Modlog(Cog):
         s = ""
 
         h_by_type = {}
-        for _type in ['warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
+        for _type in ['note', 'warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
             h_by_type.update({i: _type for i in getattr(history, _type)})
         infraction_ids = sorted(h_by_type.keys(), reverse=True)
         infractions = [await modlog.get_infraction(ctx.guild.id, i) for i in infraction_ids]
@@ -777,6 +783,7 @@ class Modlog(Cog):
         history = await self._get_history(ctx.guild.id, user.id)
         await ctx.send(
             f"Infraction history for {user}:```\n"
+            f"note: {history.note}\n"
             f"warn: {history.warn}\n"
             f"mute: {history.mute}\n"
             f"unmute: {history.unmute}\n"

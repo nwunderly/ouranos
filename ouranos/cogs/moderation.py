@@ -13,12 +13,12 @@ from loguru import logger
 
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
-from ouranos.utils import checks
 from ouranos.utils import db
 from ouranos.utils import modlog
 from ouranos.utils.better_argparse import Parser
+from ouranos.utils.checks import server_mod, server_admin, is_server_mod
 from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
-from ouranos.utils.emojis import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, EMOJI_MASSBAN
+from ouranos.utils.emojis import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, ZAP, PENCIL
 from ouranos.utils.converters import Duration, UserID, MentionOrUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
 from ouranos.utils.format import exact_timedelta
 from ouranos.utils.errors import ModerationError, UserNotInGuild, NotConfigured, \
@@ -123,6 +123,17 @@ class Moderation(Cog):
             note = "Muted user left guild but did not have any active mute infractions."
             await LogEvent('mute', member.guild, member, self.bot.user, reason, note, None).dispatch()
 
+    async def _do_note(self, guild, user, mod, reason):
+        """Creates a note for a user and dispatches the event to the modlog."""
+        member = await self.bot.get_or_fetch_member(guild, user.id)
+
+        # some checks to make sure we can actually do this
+        if member:
+            if await is_server_mod(member):
+                raise ModActionOnMod
+
+        await LogEvent('note', guild, user, mod, reason, None, None).dispatch()
+
     async def _do_warn(self, guild, user, mod, reason, note=None):
         """Applies a warn to a user and dispatches the event to the modlog."""
         config = await db.get_config(guild)
@@ -131,7 +142,7 @@ class Moderation(Cog):
         # some checks to make sure we can actually do this
         if not member:
             raise UserNotInGuild(user)
-        if await checks.is_server_mod(member):
+        if await is_server_mod(member):
             raise ModActionOnMod
 
         if not config or config.dm_on_infraction and reason:
@@ -139,9 +150,6 @@ class Moderation(Cog):
             delivered = await try_send(user, message)
         else:
             delivered = None
-
-        if note and not reason:
-            reason = 'Silent warning, user was not messaged.'
 
         await LogEvent('warn', guild, user, mod, reason, note, None).dispatch()
         return delivered
@@ -163,7 +171,7 @@ class Moderation(Cog):
             raise BotMissingPermission('Manage Roles')
         if not guild.me.top_role > role:
             raise BotRoleHierarchyError
-        if await checks.is_server_mod(member):
+        if await is_server_mod(member):
             raise ModActionOnMod
 
         # add the role
@@ -238,7 +246,7 @@ class Moderation(Cog):
                 raise BotMissingPermission('Manage Roles')
             if not guild.me.top_role > role:
                 raise BotRoleHierarchyError
-            if await checks.is_server_mod(member):
+            if await is_server_mod(member):
                 raise ModActionOnMod
 
         m = await ctx.send("Muting...")
@@ -287,7 +295,7 @@ class Moderation(Cog):
             raise BotMissingPermission('Manage Roles')
         if not guild.me.top_role > role:
             raise BotRoleHierarchyError
-        if await checks.is_server_mod(member):
+        if await is_server_mod(member):
             raise ModActionOnMod
 
         # remove the role
@@ -320,7 +328,7 @@ class Moderation(Cog):
             raise BotMissingPermission('Kick Members')
         if not guild.me.top_role > member.top_role:
             raise BotRoleHierarchyError
-        if await checks.is_server_mod(member):
+        if await is_server_mod(member):
             raise ModActionOnMod
 
         # notify the user if the setting is enabled
@@ -349,7 +357,7 @@ class Moderation(Cog):
         if member:
             if not guild.me.top_role > member.top_role:
                 raise BotRoleHierarchyError
-            if await checks.is_server_mod(member):
+            if await is_server_mod(member):
                 raise ModActionOnMod
 
         # notify the user if the setting is enabled
@@ -437,7 +445,7 @@ class Moderation(Cog):
             if member:
                 if not guild.me.top_role > member.top_role:
                     raise BotRoleHierarchyError
-                if await checks.is_server_mod(member):
+                if await is_server_mod(member):
                     raise ModActionOnMod
 
         m = await ctx.send("Banning...")
@@ -459,7 +467,7 @@ class Moderation(Cog):
         # format response message
         def _s(i):
             return "s" if i != 1 else ""
-        content = f"{EMOJI_MASSBAN} Banned {len(success)}/{total} users"
+        content = f"{ZAP} Banned {len(success)}/{total} users"
         if success:
             dt = exact_timedelta(duration) if duration else 'permanent'
             content += f' ({dt}).'
@@ -575,7 +583,20 @@ class Moderation(Cog):
         return can_unban
 
     @command()
-    @checks.server_mod()
+    @server_mod()
+    async def note(self, ctx, user: UserID, *, reason):
+        """Creates a note for a user.
+
+        Essentially a "step below" a warning. The user is not notified but an infraction is recorded.
+        Useful for logging verbal warnings or incidents that don't require a formal warning.
+
+        The "note" field is not parsed from the reason for this infraction type.
+        """
+        await self._do_note(guild=ctx.guild, user=user, mod=ctx.author, reason=reason)
+        await ctx.send(f"{PENCIL} Created note for **{user}**.")
+
+    @command()
+    @server_mod()
     async def warn(self, ctx, user: discord.Member, *, reason: RequiredReason):
         """Applies a warning to a user.
 
@@ -583,11 +604,10 @@ class Moderation(Cog):
         """
         reason, note, _ = reason or (None, None, None)
         delivered = await self._do_warn(guild=ctx.guild, user=user, mod=ctx.author, reason=reason, note=note)
-        warned = 'Warned' if reason else 'Silently warned'
-        await ctx.send(f"{THUMBS_UP} {warned} **{user}**. {notified(delivered)}")
+        await ctx.send(f"{THUMBS_UP} Warned **{user}**. {notified(delivered)}")
 
     @command()
-    @checks.server_mod()
+    @server_mod()
     async def mute(self, ctx, user: discord.Member, duration: Optional[Duration], *, reason: Reason = None):
         """Mutes a user using the guild's configured mute role.
 
@@ -629,7 +649,7 @@ class Moderation(Cog):
             await ctx.send(f"{OK_HAND} Muted **{user}** ({dt}). {notified(delivered)}")
 
     @command()
-    @checks.server_mod()
+    @server_mod()
     async def unmute(self, ctx, user: MutedUser, *, reason: Reason = None):
         """Unmutes a user using the guild's configured mute role.
 
@@ -656,7 +676,7 @@ class Moderation(Cog):
                            f"`{p}history {user.id}` should now show no active mutes.")
 
     @command()
-    @checks.server_mod()
+    @server_mod()
     async def kick(self, ctx, user: discord.Member, *, reason: Reason = None):
         """Kicks a user from the guild.
 
@@ -669,7 +689,7 @@ class Moderation(Cog):
         await ctx.send(f"{CLAP} Kicked **{user}**. {notified(delivered)}")
 
     @command()
-    @checks.server_mod()
+    @server_mod()
     async def ban(self, ctx, user: UserID, duration: Optional[Duration], *, reason: Reason = None):
         """Bans a user from the guild.
 
@@ -714,7 +734,7 @@ class Moderation(Cog):
             await ctx.send(f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}")
 
     @command()
-    @checks.server_mod()
+    @server_mod()
     async def unban(self, ctx, user: BannedUser, *, reason: Reason = None):
         """Unbans a user previously banned in this guild.
 
@@ -742,7 +762,7 @@ class Moderation(Cog):
                            f"`{p}history {user.id}` should now show no active bans.")
 
     @group(aliases=['mban'])
-    @checks.server_admin()
+    @server_admin()
     async def massban(self, ctx, users: commands.Greedy[MentionOrUserID], duration: Optional[Duration], *, reason: Reason = None):
         """Bans a set of users from the server. User IDs or mentions must be provided.
 
@@ -752,7 +772,7 @@ class Moderation(Cog):
         await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason, duration)
 
     @massban.command(name='file')
-    @checks.server_admin()
+    @server_admin()
     async def mban_file(self, ctx, *, reason: Reason = None):
         reason, note, audit_reason = reason or (None, None, None)
         audit_reason = audit_reason or Reason.format_reason(ctx)
@@ -765,7 +785,7 @@ class Moderation(Cog):
         await self._do_mass_ban(ctx, users, ctx.author, reason, note, audit_reason)
 
     @command(aliases=['mmute'])
-    @checks.server_admin()
+    @server_admin()
     async def massmute(self, ctx, users: commands.Greedy[MentionOrUserID], duration: Optional[Duration], *, reason: Reason = None):
         """Mutes a set of members. User IDs or mentions must be provided.
 
@@ -797,49 +817,49 @@ class Moderation(Cog):
         await ctx.send(response, delete_after=10)
 
     @group(aliases=['rm', 'purge', 'clean'])
-    @checks.server_mod()
+    @server_mod()
     async def remove(self, ctx, limit: int):
         """Bulk delete messages from a channel."""
         await self._do_removal(ctx, limit)
 
     @remove.command(name='user', aliases=['by'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_user(self, ctx, user: UserID, limit: int):
         """Remove messages by a particular user."""
         await self._do_removal(ctx, limit, lambda m: m.author.id == user.id)
 
     @remove.command(name='channel', aliases=['in'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_channel(self, ctx, channel: discord.TextChannel, limit: int):
         """Remove messages in another channel."""
         await self._do_removal(ctx, limit=limit, channel=channel)
 
     @remove.command(name='bot', aliases=['bots'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_bot(self, ctx, prefix: typing.Optional[NotInt], limit: int):
         """Remove messages sent by bots."""
         await self._do_removal(ctx, limit=limit, check=lambda m: m.author.bot or (prefix and m.content.startswith(prefix)))
 
     @remove.command(name='files', aliases=['file', 'attachment', 'attachments'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_files(self, ctx, limit: int):
         """Remove messages with attachments."""
         await self._do_removal(ctx, limit=limit, check=lambda m: len(m.attachments) > 0)
 
     @remove.command(name='embeds', aliases=['embed'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_embeds(self, ctx, limit: int):
         """Remove messages with embeds."""
         await self._do_removal(ctx, limit=limit, check=lambda m: len(m.embeds) > 0)
 
     @remove.command(name='images', aliases=['image', 'img'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_images(self, ctx, limit: int):
         """Remove messages with attachments or embeds."""
         await self._do_removal(ctx, limit=limit, check=lambda e: len(e.attachments) or len(e.embeds))
 
     @remove.command(name='links', aliases=['link', 'url', 'urls'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_links(self, ctx, limit: int):
         """Remove messages matching URL regex search."""
         def check(m):
@@ -848,7 +868,7 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit=limit, check=check)
 
     @remove.command(name='contains')
-    @checks.server_mod()
+    @server_mod()
     async def rm_contains(self, ctx, substring, case_insensitive: Optional[bool], limit: int):
         """Remove messages containing a substring."""
         def check(m):
@@ -860,7 +880,7 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit=limit, check=check)
 
     @remove.group(name='regex', aliases=['re'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_regex(self, ctx, pattern, limit: int):
         """Remove messages matching a regex pattern. Be careful with this one!
 
@@ -870,14 +890,14 @@ class Moderation(Cog):
         await self._do_removal(ctx, limit=limit, check=lambda m: bool(pattern.search(m.content)))
 
     @rm_regex.command(name='fullmatch', aliases=['full'])
-    @checks.server_mod()
+    @server_mod()
     async def rm_re_fullmatch(self, ctx, pattern, limit: int):
         """Regex removal, but uses `re.fullmatch()` instead."""
         pattern = re.compile(pattern)
         await self._do_removal(ctx, limit=limit, check=lambda m: bool(pattern.fullmatch(m.content)))
 
     @remove.command(name='custom')
-    @checks.server_mod()
+    @server_mod()
     async def rm_custom(self, ctx, *, args: str):
         """A more advanced purge command.
 

@@ -11,7 +11,7 @@ from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command
 from ouranos.utils.format import approximate_timedelta
 from ouranos.utils.checks import is_bot_admin, server_mod
-from ouranos.utils.emojis import TICK_GREEN, PINGBOI, BOTDEV, PYTHON, GIT, CHART, STONKS, NOT_STONKS
+from ouranos.utils.emojis import TICK_GREEN, PINGBOI, BOTDEV, PYTHON, GIT, CHART, STONKS, STONKS2
 from ouranos.utils.stats import Stats
 
 
@@ -123,7 +123,7 @@ class General(Cog):
             f"In the {approximate_timedelta(uptime)} I have been online:\n"
             f"{CHART} I have seen {(_m := Stats.messages_seen):,} message{s(_m)}.\n"
             f"{STONKS} {(_c := Stats.commands_used):,} command{(_s := s(_c))} {'have' if _s else 'has'} been used.\n"
-            f"{NOT_STONKS} I have sent {(_l := Stats.logs_sent):,} modlog message{s(_l)} in {(_g := Stats.unique_guilds())} guild{s(_g)}.")
+            f"{STONKS2} I have sent {(_l := Stats.logs_sent):,} modlog message{s(_l)} in {(_g := Stats.unique_guilds())} guild{s(_g)}.")
 
     @command(name='cleanup')
     @server_mod()

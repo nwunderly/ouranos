@@ -10,6 +10,7 @@ import textwrap
 import discord
 
 from tortoise import Tortoise
+from loguru import logger
 
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
@@ -340,7 +341,7 @@ class Admin(Cog):
         except Exception:
             return await ctx.send(f'```py\n{traceback.format_exc()}\n```')
 
-        rows = len(results)
+        rows = len(results) if results else None
         if is_multistatement or rows == 0:
             return await ctx.send(f'`{dt:.2f}ms: {results}`')
 
