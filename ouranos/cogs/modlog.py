@@ -227,7 +227,8 @@ class Modlog(Cog):
         if moderator == self.bot.user:  # action was done by me
             return
         elif moderator and moderator.id == 515067662028636170:  # Beemo (special support coming soontm)
-            await SmallLogEvent('beemo_ban', guild, user, None).dispatch()
+            await SmallLogEvent('beemo-ban', guild, user, None).dispatch()
+            return
 
         # disable currently-active ban(s) for this user in this guild, if there are any
         await self.bot.run_in_background(
