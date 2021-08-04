@@ -18,7 +18,7 @@ from ouranos.utils import modlog
 from ouranos.utils.better_argparse import Parser
 from ouranos.utils.checks import server_mod, server_admin, is_server_mod
 from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
-from ouranos.utils.emojis import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, ZAP, PENCIL
+from ouranos.utils.emojis import TICK_GREEN, TICK_YELLOW, OK_HAND, THUMBS_UP, PRAY, HAMMER, CLAP, ZAP, NOTE
 from ouranos.utils.converters import Duration, UserID, MentionOrUserID, MutedUser, BannedUser, Reason, RequiredReason, NotInt
 from ouranos.utils.format import exact_timedelta
 from ouranos.utils.errors import ModerationError, UserNotInGuild, NotConfigured, \
@@ -593,7 +593,7 @@ class Moderation(Cog):
         The "note" field is not parsed from the reason for this infraction type.
         """
         await self._do_note(guild=ctx.guild, user=user, mod=ctx.author, reason=reason)
-        await ctx.send(f"{PENCIL} Created note for **{user}**.")
+        await ctx.send(f"{NOTE} Created note for **{user}**.")
 
     @command()
     @server_mod()

@@ -384,6 +384,42 @@ class Admin(Cog):
     #     """Hot-reload an imported module."""
     #     pass
 
+    # @command()
+    # @bot_admin()
+    # async def fetch_usernames(self, ctx):
+    #     """Update username for every infraction in the bot's database.
+    #     Intended for database update adding username column to Infraction table.
+    #     """
+    #     await ctx.send("Beginning update...")
+    #
+    #     async def try_fetch_username(user_id):
+    #         u = self.bot.get_user(user_id)
+    #         if u:
+    #             return str(u)
+    #
+    #         for g in self.bot.guilds:
+    #             u = await self.bot.get_or_fetch_member(g, user_id)
+    #             if u:
+    #                 return str(u)
+    #
+    #         try:
+    #             u = await self.bot.fetch_user(user_id)
+    #         except:
+    #             u = None
+    #
+    #         if u:
+    #             return str(u)
+    #
+    #     async for infraction in db.Infraction.all():
+    #         username = await try_fetch_username(infraction.user_id)
+    #         if username:
+    #             logger.info(f"#{infraction.infraction_id}: Successful")
+    #             await db.edit_record(infraction, username=username)
+    #         else:
+    #             logger.info(f"#{infraction.infraction_id}: Not Found")
+    #
+    #     await ctx.send("Done!")
+
 
 def setup(bot):
     bot.add_cog(Admin(bot))

@@ -25,6 +25,7 @@ class Settings:
         'ouranos.cogs.admin',
         'ouranos.cogs.config',
         'ouranos.cogs.general',
+        'ouranos.cogs.logging',
         'ouranos.cogs.moderation',
         'ouranos.cogs.modlog',
     ]

@@ -59,6 +59,7 @@ class Config(Cog):
             f"admin_role: {config.admin_role_id}\n"
             f"mod_role: {config.mod_role_id}\n"
             f"dm_on_infraction: {config.dm_on_infraction}\n"
+            f"logging_config: {config.logging_config}\n"
             f"```")
 
     @config.command()

@@ -49,6 +49,7 @@ class Config(Model):
     admin_role_id = fields.BigIntField(default=0)
     mod_role_id = fields.BigIntField(default=0)
     dm_on_infraction = fields.BooleanField(default=True)
+    logging_config = fields.JSONField(default=lambda: {})
 
 
 async def get_config(guild):
