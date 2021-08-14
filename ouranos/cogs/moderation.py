@@ -259,7 +259,12 @@ class Moderation(Cog):
 
         # dispatch the modlog event
         if success:
-            await MassActionLogEvent('mute', guild, success, mod, reason, note, duration).dispatch()
+            # we only muted one person
+            if len(success) == 1: #
+                await LogEvent('mute', guild, success[0], mod, reason, note, duration).dispatch()
+            # log as mass mute
+            else:
+                await MassActionLogEvent('mute', guild, success, mod, reason, note, duration).dispatch()
 
         # format response message
         def _s(i):
@@ -462,7 +467,12 @@ class Moderation(Cog):
 
         # dispatch the modlog event
         if success:
-            await MassActionLogEvent('ban', guild, success, mod, reason, note, duration).dispatch()
+            # we only banned one person
+            if len(success) == 1: #
+                await LogEvent('ban', guild, user, mod, reason, note, duration).dispatch()
+            # log as mass ban
+            else:
+                await MassActionLogEvent('ban', guild, success, mod, reason, note, duration).dispatch()
 
         # format response message
         def _s(i):

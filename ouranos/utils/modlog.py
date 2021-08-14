@@ -107,6 +107,8 @@ async def new_infraction(guild_id, user_id, mod_id, type, reason, note, duration
 async def new_infractions_bulk(guild_id, user_ids, mod_id, type, reason, note, duration, active, infraction_ids=None):
     if not infraction_ids:
         infraction_ids = await get_case_id(guild_id, count=len(user_ids))
+        if isinstance(infraction_ids, int):
+            infraction_ids = [infraction_ids]
     created_at = time.time()
     ends_at = created_at + duration if duration else None
     rng = [min(infraction_ids), max(infraction_ids)]
