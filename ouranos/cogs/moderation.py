@@ -469,7 +469,7 @@ class Moderation(Cog):
         if success:
             # we only banned one person
             if len(success) == 1: #
-                await LogEvent('ban', guild, user, mod, reason, note, duration).dispatch()
+                await LogEvent('ban', guild, success[0], mod, reason, note, duration).dispatch()
             # log as mass ban
             else:
                 await MassActionLogEvent('ban', guild, success, mod, reason, note, duration).dispatch()
