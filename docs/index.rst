@@ -47,7 +47,7 @@ No bells and whistles, just the classic mod utilities and a clean, readable mod 
 Adding the bot
 --------------
 
-The bot is currently private. Contact `nwunder#4003` on Discord if interested in using it.
+The bot is currently private. Contact ``nwunder#4003`` on Discord if interested in using it.
 
 
 Self-hosting
@@ -64,37 +64,39 @@ Setup
 
 Once the bot has been added to your server, configuration is relatively quick and easy.
 
-To initialize the server's config, use the `?init` command. The server's configuration should now be accessible through the `?config` command.
-`?help config` gives a breakdown of the subcommands used to edit the server's configuration.
+To initialize the server's config, use the ``?init`` command. The server's configuration should now be accessible through the ``?config`` command.
+``?help config`` gives a breakdown of the subcommands used to edit the server's configuration.
 
-The server's modlog channel can be set using the `?config modlog-channel <channel>` command.
+The server's modlog channel can be set using the ``?config modlog-channel <channel>`` command.
 
 Little to no permission setup should be required. There are only two permission levels: mod and admin. Admins can edit the server's configuration, while 
 mods have access to everything else (they have full access to moderation commands).
-By default, server admins are anyone with the `Administrator` permission, while mods are anyone with the `Manage Server` permission.
-A role can be set as moderator or administrator with the `?config mod-role <role>` command. Only one role can be set for each of these configuration options.
+By default, server admins are anyone with the ``Administrator`` permission, while mods are anyone with the ``Manage Server`` permission.
+A role can be set as moderator or administrator with the ``?config mod-role <role>`` command. Only one role can be set for each of these configuration options.
 
 
 Using the bot
 -------------
 
 The bot's moderation features work exactly as you'd expect.
-- `?warn <user> <reason>` - Warns a user. A reason is required for this command.
-- `?mute <user> [duration] [reason]` - Mutes a user. Permanent if a duration is not specified.
-- `?kick <user> [reason]` - Kicks a user from the server.
-- `?ban <user> [duration] [reason]` - Bans a user. Permanent if a duration is not specified. Works with ID even if the user is not in the server.
-- `?unmute <user> [reason]` - Unmutes a user. Manual unmutes like this are treated as a modlog event (expired mutes aren't).
-- `?unban <user> [reason]` - Unbans a user. Manual unbans like this are treated as a modlog event (expired mutes aren't).
+
+- ``?warn <user> <reason>`` - Warns a user. A reason is required for this command.
+- ``?mute <user> [duration] [reason]`` - Mutes a user. Permanent if a duration is not specified.
+- ``?kick <user> [reason]`` - Kicks a user from the server.
+- ``?ban <user> [duration] [reason]`` - Bans a user. Permanent if a duration is not specified. Works with ID even if the user is not in the server.
+- ``?unmute <user> [reason]`` - Unmutes a user. Manual unmutes like this are treated as a modlog event (expired mutes aren't).
+- ``?unban <user> [reason]`` - Unbans a user. Manual unbans like this are treated as a modlog event (expired mutes aren't).
 
 Some additional behavior worth noting:
+
 - The mute/ban command, if the user is already muted/banned, will instead edit the duration of the infraction.
 - Manually-assigned mute roles are treated as a permanent mute, and logged as if the user had used a command.
 - Right-click kicks and bans are treated as a permanent ban, and logged as if a command had been used, including audit log reason.
-- The `reason` argument in mod commands is parsed such that `--` is treated as a separator,
+- The ``reason`` argument in mod commands is parsed such that ``--`` is treated as a separator,
   with the remainder of the string logged as a mod note (and not included in the DM to the user).
   
-For example, `?mute nwunder#4003 1h spamming -- spammed pictures of bulbasaur in #general` would (if dm-on-infraction is enabled in config) send a DM informing
-me that I was muted for "spamming", while other server moderators reading the modlog would be able to see in the `Note` section that I was spamming pictures of
+For example, ``?mute nwunder#4003 1h spamming -- spammed pictures of bulbasaur in #general`` would (if dm-on-infraction is enabled in config) send a DM informing
+me that I was muted for "spamming", while other server moderators reading the modlog would be able to see in the ``Note`` section that I was spamming pictures of
 bulbasaur in general chat.
 
 
@@ -102,13 +104,13 @@ Credits
 -------
 
 In addition to Ouranos' modlog being heavily inspired by Pollr, a lot of ideas and code were drawn from
-[RoboDanny](https://github.com/Rapptz/RoboDanny) by Danny#0007 and [GearBot](https://github.com/gearbot/GearBot) by AEnterprise#4693.
+`RoboDanny https://github.com/Rapptz/RoboDanny`_ by Danny#0007 and `GearBot https://github.com/gearbot/GearBot`_ by AEnterprise#4693.
 Particularly, the admin cog is built on top of Danny's code, and Ouranos' infraction database is heavily based on AEnterprise's design.
 
 
 Indices and tables
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+* :ref:``genindex``
+* :ref:``modindex``
+* :ref:``search``
