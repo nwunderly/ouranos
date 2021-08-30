@@ -104,7 +104,7 @@ Credits
 -------
 
 In addition to Ouranos' modlog being heavily inspired by Pollr, a lot of ideas and code were drawn from
-`RoboDanny https://github.com/Rapptz/RoboDanny`_ by Danny#0007 and `GearBot https://github.com/gearbot/GearBot`_ by AEnterprise#4693.
+`RoboDanny <https://github.com/Rapptz/RoboDanny>`_ by Danny#0007 and `GearBot <https://github.com/gearbot/GearBot>`_ by AEnterprise#4693.
 Particularly, the admin cog is built on top of Danny's code, and Ouranos' infraction database is heavily based on AEnterprise's design.
 
 
