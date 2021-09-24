@@ -44,9 +44,9 @@ class Config(Cog):
         else:
             await ctx.send(f"{TICK_RED} This server is already set up!")
 
-    @group()
+    @group(aliases=['config', 'cfg'])
     @server_admin()
-    async def config(self, ctx):
+    async def configure(self, ctx):
         config = await db.get_config(ctx.guild)
         if not config:
             p = ctx.prefix
