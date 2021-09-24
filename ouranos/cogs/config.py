@@ -61,7 +61,7 @@ class Config(Cog):
             f"dm_on_infraction: {config.dm_on_infraction}\n"
             f"```")
 
-    @config.command()
+    @configure.command()
     @server_admin()
     @config_exists(True)
     async def prefix(self, ctx, prefix=None):
@@ -74,7 +74,7 @@ class Config(Cog):
         await db.update_config(config=config, prefix=prefix)
         await ctx.send(f"{TICK_GREEN} Prefix updated.")
 
-    @config.command(aliases=['modlog-channel'])
+    @configure.command(aliases=['modlog-channel'])
     @server_admin()
     @config_exists(True)
     async def modlog_channel(self, ctx, channel: Union[discord.TextChannel, Zero] = None):
@@ -90,7 +90,7 @@ class Config(Cog):
         await db.update_config(config=config, modlog_channel_id=channel_id)
         await ctx.send(f"{TICK_GREEN} Modlog channel updated.")
 
-    @config.command(aliases=['mute-role'])
+    @configure.command(aliases=['mute-role'])
     @server_admin()
     @config_exists(True)
     async def mute_role(self, ctx, role: Union[discord.Role, Zero] = None):
@@ -107,7 +107,7 @@ class Config(Cog):
         await db.update_config(config=config, mute_role_id=role_id)
         await ctx.send(f"{TICK_GREEN} Mute role updated.")
 
-    @config.command(aliases=['admin-role'])
+    @configure.command(aliases=['admin-role'])
     @server_admin()
     @config_exists(True)
     async def admin_role(self, ctx, role: Union[discord.Role, Zero] = None):
@@ -124,7 +124,7 @@ class Config(Cog):
         await db.update_config(config=config, admin_role_id=role_id)
         await ctx.send(f"{TICK_GREEN} Admin role updated.")
 
-    @config.command(aliases=['mod-role'])
+    @configure.command(aliases=['mod-role'])
     @server_admin()
     @config_exists(True)
     async def mod_role(self, ctx, role: Union[discord.Role, Zero] = None):
@@ -141,7 +141,7 @@ class Config(Cog):
         await db.update_config(config=config, mod_role_id=role_id)
         await ctx.send(f"{TICK_GREEN} Mod role updated.")
 
-    @config.command(aliases=['dm-on-infraction'])
+    @configure.command(aliases=['dm-on-infraction'])
     @server_admin()
     @config_exists(True)
     async def dm_on_infraction(self, ctx, new_setting: bool = None):
