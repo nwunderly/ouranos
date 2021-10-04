@@ -59,6 +59,7 @@ class Config(Cog):
             f"admin_role: {config.admin_role_id}\n"
             f"mod_role: {config.mod_role_id}\n"
             f"dm_on_infraction: {config.dm_on_infraction}\n"
+            f"anti_phish: {config.anti_phish}\n"
             f"```")
 
     @configure.command()
@@ -152,6 +153,18 @@ class Config(Cog):
             return await ctx.send(f"dm_on_infraction is set to `{dm}` for this server.")
         await db.update_config(config=config, dm_on_infraction=new_setting)
         await ctx.send(f"{TICK_GREEN} dm_on_infraction updated.")
+
+    @configure.command(aliases=['anti-phish'])
+    @server_admin()
+    @config_exists(True)
+    async def anti_phish(self, ctx, new_setting: bool = None):
+        """Toggle phishing link automod. Deletes message and bans user."""
+        config = await db.get_config(ctx.guild)
+        if new_setting is None:
+            state = config.anti_phish
+            return await ctx.send(f"anti_phish is set to `{state}` for this server.")
+        await db.update_config(config=config, anti_phish=new_setting)
+        await ctx.send(f"{TICK_GREEN} anti_phish updated.")
 
 
 def setup(bot):

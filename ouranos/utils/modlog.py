@@ -417,6 +417,14 @@ async def log_forceban(guild, user, mod, reason, note, duration):
     await db.edit_record(infraction, message_id=message.id)
 
 
+async def log_automod_ban(guild, user, _mod, reason, note, _):
+    mod = guild.me
+    infraction = await new_infraction(guild.id, user.id, mod.id, 'ban', reason, note, None, True)
+    content = format_log_message(EMOJI_BAN, 'MEMBER AUTOMATICALLY BANNED', infraction.infraction_id, None, user, mod, reason, note)
+    message = await new_log_message(guild, content)
+    await db.edit_record(infraction, message_id=message.id)
+
+
 async def log_unban(guild, user, mod, reason, note, _):
     infraction = await new_infraction(guild.id, user.id, mod.id, 'unban', reason, note, None, False)
     content = format_log_message(EMOJI_UNBAN, 'USER UNBANNED', infraction.infraction_id, None, user, mod, reason, note)

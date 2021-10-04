@@ -27,6 +27,7 @@ class Settings:
         'ouranos.cogs.general',
         'ouranos.cogs.moderation',
         'ouranos.cogs.modlog',
+        'ouranos.cogs.anti_phish',
     ]
 
     admins = [

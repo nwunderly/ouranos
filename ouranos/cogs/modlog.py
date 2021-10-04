@@ -30,6 +30,7 @@ LOGS = {
     'kick': modlog.log_kick,
     'ban': modlog.log_ban,
     'forceban': modlog.log_forceban,
+    'autoban': modlog.log_automod_ban,
     'unban': modlog.log_unban
 }
 
