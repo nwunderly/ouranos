@@ -657,7 +657,7 @@ class Modlog(Cog):
 
         if args.keywords:
             query.append(Q(
-                *[Q(reason__contains=kw, note__icontains=kw, join_type='OR') for kw in args.keywords],
+                *[Q(reason__icontains=kw, note__icontains=kw, join_type='OR') for kw in args.keywords],
                 join_type='OR'
             ))
 
