@@ -29,6 +29,7 @@ class AntiPhish(Cog):
         await self.session.close()
 
     def get_domains(self, content):
+        content = content.replace("\u0000", "")  # NUL char handling (temp fix)
         urls = [match.group(0) for match in self.URL_PATTERN.finditer(content)]
         domains = set(urlparse(url).netloc for url in urls)
         if "" in domains:
