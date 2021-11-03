@@ -15,17 +15,21 @@ from ouranos.utils.modlog import LogEvent
 from ouranos.utils.errors import OuranosCommandError, BotMissingPermission, BotRoleHierarchyError, ModActionOnMod
 
 
-FOLLOW_REDIRECT_DOMAINS = ('bit.ly',)
-# copilot recommendations (TODO: maybe add these later)
-#'goo.gl', 't.co', 'tinyurl.com', 'is.gd', 'ow.ly', 'bitly.com')
+def _load_file(file):
+    with open(file, 'r') as f:
+        return f.read().splitlines()
+
+
+SHORTENERS_FILE = 'shorteners.txt'
+SHORTENERS = tuple(_load_file(SHORTENERS_FILE))
+
+URL_PATTERN = re.compile(
+    # r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+    r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
+)
 
 
 class AntiPhish(Cog):
-    URL_PATTERN = re.compile(
-        # r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-        r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
-    )
-
     def __init__(self, bot):
         self.bot = bot
         self.session = aiohttp.ClientSession()
@@ -38,7 +42,7 @@ class AntiPhish(Cog):
 
     def get_domains(self, content):
         content = content.replace("\u0000", "")  # NUL char handling (temp fix) (TODO)
-        urls = [match.group(0) for match in self.URL_PATTERN.finditer(content)]
+        urls = [match.group(0) for match in URL_PATTERN.finditer(content)]
 
         # domains = set(urlparse(url).netloc for url in urls)
         # bitly link handling (temp fix) (TODO)
@@ -47,7 +51,7 @@ class AntiPhish(Cog):
         for url in urls:
             parsed = urlparse(url)
             if parsed.netloc:
-                if parsed.netloc.startswith(FOLLOW_REDIRECT_DOMAINS):
+                if parsed.netloc.startswith(SHORTENERS):
                     to_follow.add(url)
                 else:
                     domains.add(parsed.netloc)
