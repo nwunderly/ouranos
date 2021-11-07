@@ -68,6 +68,7 @@ bee4.biz
 bim.im
 bit.do
 bit.ly
+bitly.com
 bitw.in
 blap.net
 ble.pl
