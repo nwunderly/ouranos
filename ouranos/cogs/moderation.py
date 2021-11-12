@@ -460,7 +460,7 @@ class Moderation(Cog):
         not_found = 0
         for user in bannable_users:
             try:
-                await guild.ban(user, reason=audit_reason, delete_message_days=0)
+                await guild.ban(user, reason=audit_reason, delete_message_days=1)
                 success.append(user)
             except discord.NotFound:
                 not_found += 1
