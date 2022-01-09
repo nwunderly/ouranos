@@ -105,6 +105,7 @@ curl.im
 cut.pe
 cut.sk
 cutt.eu
+cutt.ly
 cutt.us
 cutu.me
 cybr.fr
