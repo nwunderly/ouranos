@@ -1,25 +1,24 @@
 import re
+
 import discord
-
 from discord.ext import commands
-from discord.ext.commands import Converter, BadArgument
+from discord.ext.commands import BadArgument, Converter
 
-from ouranos.utils import db
-from ouranos.utils import modlog
-from ouranos.utils.errors import NotConfigured, BotMissingPermission
+from ouranos.utils import db, modlog
+from ouranos.utils.errors import BotMissingPermission, NotConfigured
 from ouranos.utils.format import DAY
 
 
 class FetchedUser(Converter):
     async def convert(self, ctx, argument):
         if not argument.isdigit():
-            raise BadArgument('Not a valid user ID.')
+            raise BadArgument("Not a valid user ID.")
         try:
             return await ctx.bot.fetch_user(argument)
         except discord.NotFound:
-            raise BadArgument('User not found.') from None
+            raise BadArgument("User not found.") from None
         except discord.HTTPException:
-            raise BadArgument('An error occurred while fetching the user.') from None
+            raise BadArgument("An error occurred while fetching the user.") from None
 
 
 class Command(Converter):
@@ -40,13 +39,15 @@ class Module(Converter):
             raise BadArgument("A module with this name could not be found.")
 
 
-duration_pattern = re.compile(r"(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
+duration_pattern = re.compile(
+    r"(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+)
 
 
 class Duration(Converter):
     @classmethod
     def _real_convert(cls, argument):
-        if argument.lower() in ('permanent', 'perm'):
+        if argument.lower() in ("permanent", "perm"):
             return None
         match = duration_pattern.match(argument)
 
@@ -62,9 +63,9 @@ class Duration(Converter):
         except ValueError:
             raise BadArgument
 
-        dur = w*7*24*60*60 + d*24*60*60 + h*60*60 + m*60 + s
+        dur = w * 7 * 24 * 60 * 60 + d * 24 * 60 * 60 + h * 60 * 60 + m * 60 + s
 
-        if dur >= DAY*365*5:  # ~5 years
+        if dur >= DAY * 365 * 5:  # ~5 years
             return None
 
         return dur
@@ -81,12 +82,18 @@ class UserID(Converter):
             try:
                 member_id = int(argument, base=10)
             except ValueError:
-                raise BadArgument(f"{argument} is not a valid user or user ID.") from None
+                raise BadArgument(
+                    f"{argument} is not a valid user or user ID."
+                ) from None
             else:
                 m = await ctx.bot.get_or_fetch_member(ctx.guild, member_id)
                 if m is None:
                     # hackban case
-                    return type('_Hackban', (), {'id': member_id, '__str__': lambda s: f'User ID {s.id}'})()
+                    return type(
+                        "_Hackban",
+                        (),
+                        {"id": member_id, "__str__": lambda s: f"User ID {s.id}"},
+                    )()
         return m
 
 
@@ -115,9 +122,9 @@ class MutedUser(Converter):
             if role in member.roles:
                 return member, True
             else:
-                raise BadArgument('This user is not muted.')
+                raise BadArgument("This user is not muted.")
         else:
-            raise NotConfigured('mute_role')
+            raise NotConfigured("mute_role")
 
     async def _from_db(self, ctx, member_id):
         if not isinstance(member_id, int):
@@ -155,12 +162,12 @@ class BannedUser(Converter):
             try:
                 return await ctx.guild.fetch_ban(discord.Object(id=member_id)), True
             except discord.NotFound:
-                raise BadArgument('This user is not banned.') from None
+                raise BadArgument("This user is not banned.") from None
 
         ban_list = await ctx.guild.bans()
         entity = discord.utils.find(lambda u: str(u.user) == argument, ban_list)
         if entity is None:
-            raise BadArgument('This user is not banned.')
+            raise BadArgument("This user is not banned.")
         return entity, True
 
     async def _from_db(self, ctx, argument):
@@ -191,7 +198,7 @@ class Reason(Converter):
     # pattern = re.compile(r"^(?:([\w ]*\w) *)?(?:--note|-n) +(.+)")
 
     async def convert(self, ctx, argument):
-        split = argument.split('--', 1)
+        split = argument.split("--", 1)
         if len(split) == 1:
             reason, note = argument.strip(), None
         else:
@@ -200,20 +207,20 @@ class Reason(Converter):
         r = Reason.format_reason(ctx, reason, note)
         if len(r) > 512:
             reason_max = 512 - len(r) + len(argument)
-            raise BadArgument(f'Reason is too long ({len(argument)}/{reason_max})')
+            raise BadArgument(f"Reason is too long ({len(argument)}/{reason_max})")
 
         return reason or None, note or None, r
 
     @classmethod
     def format_reason(cls, ctx, reason=None, note=None):
-        return f'{ctx.author} ({ctx.author.id}): {reason} (note: {note})'
+        return f"{ctx.author} ({ctx.author.id}): {reason} (note: {note})"
 
 
 class RequiredReason(Reason):
     async def convert(self, ctx, argument):
         reason, note, r = await super().convert(ctx, argument)
         if not reason:
-            raise BadArgument('a reason is required for this command.')
+            raise BadArgument("a reason is required for this command.")
         return reason, note, r
 
 
@@ -237,7 +244,9 @@ class A_OR_B(Converter):
         elif a == self.OPTION_B:
             return False
         else:
-            raise BadArgument(f"Expected `{self.OPTION_A}` or `{self.OPTION_B}`, got `{argument}`.")
+            raise BadArgument(
+                f"Expected `{self.OPTION_A}` or `{self.OPTION_B}`, got `{argument}`."
+            )
 
 
 class Options(Converter):
@@ -248,13 +257,13 @@ class Options(Converter):
         if a in self.OPTIONS:
             return self.OPTIONS[a]
         else:
-            options = ', '.join('`' + str(o) + '`' for o in self.OPTIONS)
+            options = ", ".join("`" + str(o) + "`" for o in self.OPTIONS)
             raise BadArgument(f"Expected one of ({options}), got `{argument}`.")
 
 
 class Guild(Converter):
     async def convert(self, ctx, argument):
-        if argument == '.':
+        if argument == ".":
             return ctx.guild
         else:
             return await commands.GuildConverter().convert(ctx, argument)
@@ -262,7 +271,7 @@ class Guild(Converter):
 
 class TextChannel(Converter):
     async def convert(self, ctx, argument):
-        if argument == '.':
+        if argument == ".":
             return ctx.channel
         else:
             return await commands.TextChannelConverter().convert(ctx, argument)
@@ -270,7 +279,7 @@ class TextChannel(Converter):
 
 class InfractionID(Converter):
     async def convert(self, ctx, argument):
-        if argument.lower() in ('last', 'l'):
+        if argument.lower() in ("last", "l"):
             argument = -1
         try:
             infraction_id = int(argument)
@@ -287,13 +296,13 @@ class InfractionID(Converter):
 
 class InfractionIDRange(Converter):
     async def convert(self, ctx, argument):
-        split = argument.split(':')
+        split = argument.split(":")
         if len(split) != 2:
             raise BadArgument("Infraction id range must be in format `start:end`.")
 
         conv = InfractionID()
         s, e = split
-        e = e or '-1'  # allow trailing colon to refer to "everything after x"
+        e = e or "-1"  # allow trailing colon to refer to "everything after x"
         start, end = await conv.convert(ctx, s), await conv.convert(ctx, e)
 
         if start >= end:

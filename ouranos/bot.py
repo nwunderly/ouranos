@@ -1,19 +1,18 @@
+import asyncio
 import datetime
+import json
 import random
 import signal
-import asyncio
-import json
-import discord
 
-from discord.ext import commands
-from discord.ext import tasks
+import discord
+from discord.ext import commands, tasks
 from loguru import logger
 
-from ouranos.settings import Settings
 from ouranos.dpy.command import HelpCommand
 from ouranos.dpy.context import Context
+from ouranos.settings import Settings
 from ouranos.utils import db
-from ouranos.utils.emojis import TICK_RED, PINGBOI
+from ouranos.utils.emojis import PINGBOI, TICK_RED
 from ouranos.utils.errors import OuranosCommandError, UnexpectedError
 
 
@@ -43,7 +42,7 @@ class Ouranos(commands.AutoShardedBot):
             help_command=HelpCommand(),
             intents=Settings.intents,
             allowed_mentions=Settings.allowed_mentions,
-            **kwargs
+            **kwargs,
         )
         self.__token = token
         self.__db_url = db_url
@@ -66,6 +65,7 @@ class Ouranos(commands.AutoShardedBot):
                 await coro
             except Exception as e:
                 logger.exception(f"Error in background task:")
+
         self.loop.create_task(_task())
 
     def run(self):
@@ -76,7 +76,9 @@ class Ouranos(commands.AutoShardedBot):
         """Custom start method, handles async setup before login."""
         try:
             self.loop.remove_signal_handler(signal.SIGINT)
-            self.loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(self.close()))
+            self.loop.add_signal_handler(
+                signal.SIGINT, lambda: asyncio.create_task(self.close())
+            )
         except NotImplementedError:
             pass
 
@@ -152,7 +154,7 @@ class Ouranos(commands.AutoShardedBot):
         await db.Tortoise.close_connections()
 
     async def on_ready(self):
-        logger.info(f'Logged in as {self.user}.')
+        logger.info(f"Logged in as {self.user}.")
         if not self._running:
             self.update_presence.start()
         self._running = True
@@ -165,12 +167,13 @@ class Ouranos(commands.AutoShardedBot):
         await self.process_commands(message)
 
     async def process_mention(self, message):
-        if message.content in [self.user.mention, '<@!%s>' % self.user.id]:
+        if message.content in [self.user.mention, "<@!%s>" % self.user.id]:
             if message.channel.permissions_for(message.guild.me).send_messages:
                 p = await self.prefix(message)
                 await message.channel.send(
                     f"{PINGBOI} **My prefix here is** `{p}`\n"
-                    f"(Use `{p}help` or `{p}about` for more info!)")
+                    f"(Use `{p}help` or `{p}about` for more info!)"
+                )
 
     async def prefix(self, message):
         return await self.command_prefix(self, message, only_guild_prefix=True)
@@ -182,19 +185,27 @@ class Ouranos(commands.AutoShardedBot):
         if isinstance(error, commands.UserInputError):
             await ctx.send(f"{TICK_RED} {str(error).capitalize()}")
         elif isinstance(error, UnexpectedError):
-            await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error}\n```')
+            await ctx.send(f"{TICK_RED} An unexpected error occurred:```\n{error}\n```")
         elif isinstance(error, OuranosCommandError):
             await ctx.send(f"{TICK_RED} {error}")
         elif isinstance(error, discord.Forbidden):
-            await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
+            await ctx.send(
+                f"{TICK_RED} I do not have permission to execute this action."
+            )
         elif isinstance(error, commands.CommandInvokeError):
             error = error.original or error
             if isinstance(error, discord.Forbidden):
-                await ctx.send(f'{TICK_RED} I do not have permission to execute this action.')
+                await ctx.send(
+                    f"{TICK_RED} I do not have permission to execute this action."
+                )
             elif isinstance(error, discord.NotFound):
-                await ctx.send(f"{TICK_RED} Not found: {error.text.lower().capitalize()}.")
+                await ctx.send(
+                    f"{TICK_RED} Not found: {error.text.lower().capitalize()}."
+                )
             elif isinstance(error, discord.HTTPException):
-                await ctx.send(f'{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```')
+                await ctx.send(
+                    f"{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```"
+                )
 
     async def on_command_error(self, ctx, exception):
         if isinstance(exception, commands.CommandInvokeError):
@@ -202,10 +213,12 @@ class Ouranos(commands.AutoShardedBot):
             try:
                 raise exc.with_traceback(exc.__traceback__)
             except exc.__class__:
-                logger.exception(f"Error invoking command '{ctx.command.qualified_name}' / "
-                                 f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
-                                 f"channel {ctx.channel.id}, "
-                                 f"message {ctx.message.id}\n")
+                logger.exception(
+                    f"Error invoking command '{ctx.command.qualified_name}' / "
+                    f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
+                    f"channel {ctx.channel.id}, "
+                    f"message {ctx.message.id}\n"
+                )
                 # f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
         try:
             await self._respond_to_error(ctx, exception)
@@ -213,11 +226,13 @@ class Ouranos(commands.AutoShardedBot):
             pass
 
     async def on_command_completion(self, ctx):
-        logger.info(f"Command '{ctx.command.qualified_name}' invoked / "
-                    f"author {ctx.author.id}, "
-                    f"guild {ctx.guild.id if ctx.guild else None}, "
-                    f"channel {ctx.channel.id}, "
-                    f"message {ctx.message.id}")
+        logger.info(
+            f"Command '{ctx.command.qualified_name}' invoked / "
+            f"author {ctx.author.id}, "
+            f"guild {ctx.guild.id if ctx.guild else None}, "
+            f"channel {ctx.channel.id}, "
+            f"message {ctx.message.id}"
+        )
 
     async def get_context(self, message, *, cls=Context):
         return await super().get_context(message, cls=cls)
@@ -234,11 +249,14 @@ class Ouranos(commands.AutoShardedBot):
         if name.lower().startswith("playing "):
             activity = discord.Game(name.replace("playing ", ""))
         elif name.lower().startswith("watching "):
-            activity = discord.Activity(type=discord.ActivityType.watching,
-                                        name=name.replace("watching ", ""))
+            activity = discord.Activity(
+                type=discord.ActivityType.watching, name=name.replace("watching ", "")
+            )
         elif name.lower().startswith("listening to "):
-            activity = discord.Activity(type=discord.ActivityType.listening,
-                                        name=name.replace("listening to ", ""))
+            activity = discord.Activity(
+                type=discord.ActivityType.listening,
+                name=name.replace("listening to ", ""),
+            )
         if activity:
             await self.change_presence(activity=activity)
 
@@ -250,7 +268,7 @@ class Ouranos(commands.AutoShardedBot):
 
     def load_blacklist(self):
         try:
-            with open('./data/id_blacklist.json') as fp:
+            with open("./data/id_blacklist.json") as fp:
                 data = json.load(fp)
                 self._blacklist = set(data)
             logger.debug("Loaded blacklist")
@@ -260,7 +278,7 @@ class Ouranos(commands.AutoShardedBot):
 
     def dump_blacklist(self):
         try:
-            with open('./data/id_blacklist.json', 'w') as fp:
+            with open("./data/id_blacklist.json", "w") as fp:
                 data = list(self._blacklist)
                 json.dump(data, fp)
                 logger.debug("Dumped blacklist.")
@@ -288,7 +306,7 @@ class Ouranos(commands.AutoShardedBot):
 
     def load_aloc(self):
         try:
-            with open('./aloc.txt') as fp:
+            with open("./aloc.txt") as fp:
                 self.aloc = int(fp.read())
             logger.debug("Loaded ALOC")
         except:

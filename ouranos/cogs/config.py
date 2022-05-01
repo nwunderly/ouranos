@@ -1,11 +1,11 @@
-import discord
-
-from discord.ext import commands
 from typing import Union
 
-from ouranos.settings import Settings
+import discord
+from discord.ext import commands
+
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
+from ouranos.settings import Settings
 from ouranos.utils import db
 from ouranos.utils.checks import is_bot_admin, server_admin
 from ouranos.utils.emojis import TICK_GREEN, TICK_RED, TICK_YELLOW
@@ -17,11 +17,13 @@ def config_exists(exists=True):
             return True
         config = await db.get_config(ctx.guild)
         return bool(config) == exists
+
     return commands.check(pred)
 
 
 class Zero(commands.Converter):
     """Resets a configuration setting."""
+
     async def convert(self, ctx, argument):
         if argument == "0":
             return 0
@@ -31,6 +33,7 @@ class Zero(commands.Converter):
 
 class Config(Cog):
     """Bot configuration commands."""
+
     def __init__(self, bot):
         self.bot = bot
 
@@ -44,13 +47,15 @@ class Config(Cog):
         else:
             await ctx.send(f"{TICK_RED} This server is already set up!")
 
-    @group(aliases=['config', 'cfg'])
+    @group(aliases=["config", "cfg"])
     @server_admin()
     async def configure(self, ctx):
         config = await db.get_config(ctx.guild)
         if not config:
             p = ctx.prefix
-            return await ctx.send(f"{TICK_YELLOW} This server is not set up yet. Use {p}init to create a config.")
+            return await ctx.send(
+                f"{TICK_YELLOW} This server is not set up yet. Use {p}init to create a config."
+            )
         await ctx.send(
             f"This server's configuration:```\n"
             f"prefix: {config.prefix}\n"
@@ -60,7 +65,8 @@ class Config(Cog):
             f"mod_role: {config.mod_role_id}\n"
             f"dm_on_infraction: {config.dm_on_infraction}\n"
             f"anti_phish: {config.anti_phish}\n"
-            f"```")
+            f"```"
+        )
 
     @configure.command()
     @server_admin()
@@ -69,16 +75,22 @@ class Config(Cog):
         """Edit this server's prefix."""
         config = await db.get_config(ctx.guild)
         if not prefix:
-            return await ctx.send(f"My prefix here is `{config.prefix if config else Settings.prefix}`.")
+            return await ctx.send(
+                f"My prefix here is `{config.prefix if config else Settings.prefix}`."
+            )
         elif len(prefix) > 10:
-            return await ctx.send(f"{TICK_RED} That prefix is too long! Prefix must be <=10 characters.")
+            return await ctx.send(
+                f"{TICK_RED} That prefix is too long! Prefix must be <=10 characters."
+            )
         await db.update_config(config=config, prefix=prefix)
         await ctx.send(f"{TICK_GREEN} Prefix updated.")
 
-    @configure.command(aliases=['modlog-channel'])
+    @configure.command(aliases=["modlog-channel"])
     @server_admin()
     @config_exists(True)
-    async def modlog_channel(self, ctx, channel: Union[discord.TextChannel, Zero] = None):
+    async def modlog_channel(
+        self, ctx, channel: Union[discord.TextChannel, Zero] = None
+    ):
         """Edit this server's modlog channel. Passing 0 will disable this feature."""
         config = await db.get_config(ctx.guild)
         if channel is None:
@@ -91,7 +103,7 @@ class Config(Cog):
         await db.update_config(config=config, modlog_channel_id=channel_id)
         await ctx.send(f"{TICK_GREEN} Modlog channel updated.")
 
-    @configure.command(aliases=['mute-role'])
+    @configure.command(aliases=["mute-role"])
     @server_admin()
     @config_exists(True)
     async def mute_role(self, ctx, role: Union[discord.Role, Zero] = None):
@@ -99,8 +111,10 @@ class Config(Cog):
         config = await db.get_config(ctx.guild)
         if role is None:
             r = config.mute_role_id
-            return await ctx.send(f"This server's mute role is set to <@&{r}> (id `{r}`).",
-                                  allowed_mentions=discord.AllowedMentions.none())
+            return await ctx.send(
+                f"This server's mute role is set to <@&{r}> (id `{r}`).",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
         elif role == 0:  # reset indicator
             role_id = 0
         else:
@@ -108,7 +122,7 @@ class Config(Cog):
         await db.update_config(config=config, mute_role_id=role_id)
         await ctx.send(f"{TICK_GREEN} Mute role updated.")
 
-    @configure.command(aliases=['admin-role'])
+    @configure.command(aliases=["admin-role"])
     @server_admin()
     @config_exists(True)
     async def admin_role(self, ctx, role: Union[discord.Role, Zero] = None):
@@ -116,8 +130,10 @@ class Config(Cog):
         config = await db.get_config(ctx.guild)
         if role is None:
             r = config.admin_role_id
-            return await ctx.send(f"This server's admin role is set to <@&{r}> (id `{r}`).",
-                                  allowed_mentions=discord.AllowedMentions.none())
+            return await ctx.send(
+                f"This server's admin role is set to <@&{r}> (id `{r}`).",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
         elif role == 0:  # reset indicator
             role_id = 0
         else:
@@ -125,7 +141,7 @@ class Config(Cog):
         await db.update_config(config=config, admin_role_id=role_id)
         await ctx.send(f"{TICK_GREEN} Admin role updated.")
 
-    @configure.command(aliases=['mod-role'])
+    @configure.command(aliases=["mod-role"])
     @server_admin()
     @config_exists(True)
     async def mod_role(self, ctx, role: Union[discord.Role, Zero] = None):
@@ -133,8 +149,10 @@ class Config(Cog):
         config = await db.get_config(ctx.guild)
         if role is None:
             r = config.mod_role_id
-            return await ctx.send(f"This server's mod role is set to <@&{r}> (id `{r}`).",
-                                  allowed_mentions=discord.AllowedMentions.none())
+            return await ctx.send(
+                f"This server's mod role is set to <@&{r}> (id `{r}`).",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
         elif role == 0:  # reset indicator
             role_id = 0
         else:
@@ -142,7 +160,7 @@ class Config(Cog):
         await db.update_config(config=config, mod_role_id=role_id)
         await ctx.send(f"{TICK_GREEN} Mod role updated.")
 
-    @configure.command(aliases=['dm-on-infraction'])
+    @configure.command(aliases=["dm-on-infraction"])
     @server_admin()
     @config_exists(True)
     async def dm_on_infraction(self, ctx, new_setting: bool = None):
@@ -154,7 +172,7 @@ class Config(Cog):
         await db.update_config(config=config, dm_on_infraction=new_setting)
         await ctx.send(f"{TICK_GREEN} dm_on_infraction updated.")
 
-    @configure.command(aliases=['anti-phish'])
+    @configure.command(aliases=["anti-phish"])
     @server_admin()
     @config_exists(True)
     async def anti_phish(self, ctx, new_setting: bool = None):

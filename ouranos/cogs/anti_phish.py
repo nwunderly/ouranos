@@ -1,26 +1,31 @@
-import aiohttp
 import re
-import discord
-
-from discord.ext import commands
-from loguru import logger
 from urllib.parse import urlparse
 
+import aiohttp
+import discord
 from auth import PHISH_API, PHISH_IDENTITY
+from discord.ext import commands
+from loguru import logger
+
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
 from ouranos.utils import db
-from ouranos.utils.checks import server_mod, server_admin, is_server_mod
+from ouranos.utils.checks import is_server_mod, server_admin, server_mod
+from ouranos.utils.errors import (
+    BotMissingPermission,
+    BotRoleHierarchyError,
+    ModActionOnMod,
+    OuranosCommandError,
+)
 from ouranos.utils.modlog import LogEvent
-from ouranos.utils.errors import OuranosCommandError, BotMissingPermission, BotRoleHierarchyError, ModActionOnMod
 
 
 def _load_file(file):
-    with open(file, 'r') as f:
+    with open(file, "r") as f:
         return f.read().splitlines()
 
 
-SHORTENERS_FILE = 'shorteners.txt'
+SHORTENERS_FILE = "shorteners.txt"
 SHORTENERS = tuple(_load_file(SHORTENERS_FILE))
 
 URL_PATTERN = re.compile(
@@ -62,15 +67,16 @@ class AntiPhish(Cog):
         return domains, to_follow
 
     async def is_phish_domain(self, domain):
-        async with self.session.get(f"{PHISH_API}/check/{domain}",
-                                    headers=PHISH_IDENTITY) as resp:
+        async with self.session.get(
+            f"{PHISH_API}/check/{domain}", headers=PHISH_IDENTITY
+        ) as resp:
             resp.raise_for_status()
             return await resp.json()
 
     async def follow_redirect(self, url):
         async with self.session.get(url, allow_redirects=False) as resp:
             if 300 <= resp.status < 400:
-                return resp.headers['Location']
+                return resp.headers["Location"]
 
     async def _do_auto_ban(self, guild, user, message, domain, from_redirect):
         """Automatically bans a user and dispatches the event to the modlog."""
@@ -80,7 +86,7 @@ class AntiPhish(Cog):
 
         # some checks to make sure we can actually do this
         if not guild.me.guild_permissions.ban_members:
-            raise BotMissingPermission('Ban Members')
+            raise BotMissingPermission("Ban Members")
         # member is assumed to exist (message is known)
         if not guild.me.top_role > member.top_role:
             raise BotRoleHierarchyError
@@ -96,7 +102,7 @@ class AntiPhish(Cog):
         # dispatch the modlog event
         reason_domain = f"{from_redirect} -> {domain}" if from_redirect else domain
         reason = f"Phishing link detected ({reason_domain})"
-        await LogEvent('autoban', guild, user, mod, reason, None, duration).dispatch()
+        await LogEvent("autoban", guild, user, mod, reason, None, duration).dispatch()
 
     async def process_phishing(self, content):
         # runs regex to find URLs and uses urlparse to extract domain for each
@@ -115,7 +121,9 @@ class AntiPhish(Cog):
                 if new_domain:
                     if new_domain not in domains_from_redirect:
                         old_url_parsed = urlparse(url)
-                        domains_from_redirect[new_domain] = old_url_parsed.netloc + old_url_parsed.path
+                        domains_from_redirect[new_domain] = (
+                            old_url_parsed.netloc + old_url_parsed.path
+                        )
                     domains.add(new_domain)
 
         # check API and ban if phishing
@@ -140,7 +148,9 @@ class AntiPhish(Cog):
 
         if domain:
             try:
-                return await self._do_auto_ban(message.guild, message.author, message, domain, from_redirect)
+                return await self._do_auto_ban(
+                    message.guild, message.author, message, domain, from_redirect
+                )
             except OuranosCommandError:
                 return
 
@@ -151,7 +161,10 @@ class AntiPhish(Cog):
         domain, from_redirect = await self.process_phishing(content)
 
         if domain:
-            await ctx.send(f"{domain} is a phishing domain" + (f" (from {from_redirect})" if from_redirect else ""))
+            await ctx.send(
+                f"{domain} is a phishing domain"
+                + (f" (from {from_redirect})" if from_redirect else "")
+            )
         else:
             await ctx.send("No phishing domains detected.")
 

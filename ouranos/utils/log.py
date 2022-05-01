@@ -1,12 +1,11 @@
-import aiohttp
 import logging
 import sys
-
 from collections import deque
-from loguru import logger
-from discord.webhook import Webhook, AsyncWebhookAdapter
 
+import aiohttp
 from auth import WEBHOOK_URL_PROD
+from discord.webhook import AsyncWebhookAdapter, Webhook
+from loguru import logger
 
 
 class InterceptHandler(logging.Handler):
@@ -23,16 +22,20 @@ class InterceptHandler(logging.Handler):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
 
 
 def ouranos_or_main(r):
-    return r['name'].startswith(('__main__', 'ouranos'))
+    return r["name"].startswith(("__main__", "ouranos"))
 
 
 async def webhook_log(msg):
     async with aiohttp.ClientSession() as session:
-        webhook = Webhook.from_url(WEBHOOK_URL_PROD, adapter=AsyncWebhookAdapter(session))
+        webhook = Webhook.from_url(
+            WEBHOOK_URL_PROD, adapter=AsyncWebhookAdapter(session)
+        )
         await webhook.send(f"```\n{msg}\n```")
 
 
@@ -45,33 +48,28 @@ def cache_log(msg):
 
 def init(lvl):
     logger.remove()
-    debug = lvl == 'DEBUG'
+    debug = lvl == "DEBUG"
 
     # main log (stdout, viewable with docker logs command)
-    logger.add(
-        sys.stdout,
-        diagnose=debug,
-        level=lvl,
-        backtrace=False
-    )
+    logger.add(sys.stdout, diagnose=debug, level=lvl, backtrace=False)
 
     # discord log file
-    logging.getLogger('discord').addHandler(InterceptHandler())
+    logging.getLogger("discord").addHandler(InterceptHandler())
     logger.add(
-        './logs/discord.log',
-        rotation='00:00',
-        retention='1 week',
+        "./logs/discord.log",
+        rotation="00:00",
+        retention="1 week",
         backtrace=False,
         diagnose=False,
-        level='INFO',
-        filter='discord',
+        level="INFO",
+        filter="discord",
     )
 
     # ouranos log file
     logger.add(
-        './logs/ouranos.log',
-        rotation='00:00',
-        retention='1 week',
+        "./logs/ouranos.log",
+        rotation="00:00",
+        retention="1 week",
         diagnose=debug,
         backtrace=False,
         level=lvl,
@@ -84,7 +82,7 @@ def init(lvl):
             webhook_log,
             diagnose=False,
             backtrace=False,
-            level='ERROR',
+            level="ERROR",
             filter=ouranos_or_main,
         )
 
@@ -93,6 +91,6 @@ def init(lvl):
         cache_log,
         diagnose=False,
         backtrace=False,
-        level='DEBUG',
+        level="DEBUG",
         filter=ouranos_or_main,
     )

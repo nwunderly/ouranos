@@ -1,12 +1,11 @@
 import json
+from typing import Any, List, Optional, Type, Union
 
-from typing import List, Union, Type, Optional, Any
-from tortoise import fields, Tortoise
-from tortoise.models import Model
 from loguru import logger
+from tortoise import Tortoise, fields
+from tortoise.models import Model
 
 from ouranos.settings import Settings
-
 
 # infraction database schema heavily inspired by GearBot: https://github.com/gearbot/GearBot
 
@@ -87,7 +86,9 @@ class IntArrayField(fields.Field, list):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def to_db_value(self, value: List[int], instance: Union[Type[Model], Model]) -> Optional[List[int]]:
+    def to_db_value(
+        self, value: List[int], instance: Union[Type[Model], Model]
+    ) -> Optional[List[int]]:
         return value
 
     def to_python_value(self, value: Any) -> Optional[List[int]]:
@@ -140,8 +141,5 @@ class History(Model):
 
 async def init(db_url):
     logger.info("Connecting to database.")
-    await Tortoise.init(
-        db_url=db_url,
-        modules={'models': ['ouranos.utils.db']}
-    )
+    await Tortoise.init(db_url=db_url, modules={"models": ["ouranos.utils.db"]})
     await Tortoise.generate_schemas()

@@ -14,7 +14,7 @@ def list_by_category(guild):
 def approximate_timedelta(dt):
     if isinstance(dt, datetime.timedelta):
         dt = dt.total_seconds()
-    s = lambda n: 's' if n != 1 else ''
+    s = lambda n: "s" if n != 1 else ""
     if dt >= WEEK:
         t = f"{int(_w := dt // WEEK)} week" + s(_w)
     elif dt >= DAY:
@@ -30,38 +30,39 @@ def approximate_timedelta(dt):
 
 
 SECOND = 1
-MINUTE = SECOND*60
-HOUR = MINUTE*60
-DAY = HOUR*24
-WEEK = DAY*7
+MINUTE = SECOND * 60
+HOUR = MINUTE * 60
+DAY = HOUR * 24
+WEEK = DAY * 7
 
 
 def exact_timedelta(dt):
     if isinstance(dt, datetime.timedelta):
         dt = dt.total_seconds()
     t = []
-    s = lambda n: 's' if n > 1 else ''
+    s = lambda n: "s" if n > 1 else ""
     if dt >= WEEK:
         t.append(f"{int(_w := dt // WEEK)} week" + s(_w))
-        dt -= _w*WEEK
+        dt -= _w * WEEK
     if dt >= DAY:
         t.append(f"{int(_d := dt // DAY)} day" + s(_d))
-        dt -= _d*DAY
+        dt -= _d * DAY
     if dt >= HOUR:
         t.append(f"{int(_h := dt // HOUR)} hour" + s(_h))
-        dt -= _h*HOUR
+        dt -= _h * HOUR
     if dt >= MINUTE:
         t.append(f"{int(_m := dt // MINUTE)} minute" + s(_m))
-        dt -= _m*MINUTE
+        dt -= _m * MINUTE
     if dt >= SECOND:
         t.append(f"{int(_s := dt // SECOND)} second" + s(_s))
-        dt -= _s*SECOND
+        dt -= _s * SECOND
 
     return ", ".join(t)
 
 
 class TableFormatter:
     """https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/formats.py"""
+
     def __init__(self):
         self._widths = []
         self._columns = []
@@ -94,14 +95,14 @@ class TableFormatter:
         +-------+-----+
         """
 
-        sep = '+'.join('-' * w for w in self._widths)
-        sep = f'+{sep}+'
+        sep = "+".join("-" * w for w in self._widths)
+        sep = f"+{sep}+"
 
         to_draw = [sep]
 
         def get_entry(d):
-            elem = '|'.join(f'{e:^{self._widths[i]}}' for i, e in enumerate(d))
-            return f'|{elem}|'
+            elem = "|".join(f"{e:^{self._widths[i]}}" for i, e in enumerate(d))
+            return f"|{elem}|"
 
         to_draw.append(get_entry(self._columns))
         to_draw.append(sep)
@@ -110,4 +111,4 @@ class TableFormatter:
             to_draw.append(get_entry(row))
 
         to_draw.append(sep)
-        return '\n'.join(to_draw)
+        return "\n".join(to_draw)

@@ -1,52 +1,60 @@
-import io
 import asyncio
-import time
-import discord
+import io
 import shlex
-
+import time
 from collections import defaultdict, deque
+
+import discord
 from discord.ext import commands, tasks
 from loguru import logger
 from tortoise.queryset import Q
 
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
-from ouranos.utils import db
-from ouranos.utils import modlog
+from ouranos.utils import db, modlog
 from ouranos.utils.better_argparse import Parser
-from ouranos.utils.modlog import LogEvent, SmallLogEvent, MassActionLogEvent
-from ouranos.utils.checks import server_mod, server_admin
-from ouranos.utils.converters import UserID, Duration, InfractionID, InfractionIDRange, Options
+from ouranos.utils.checks import server_admin, server_mod
+from ouranos.utils.converters import (
+    Duration,
+    InfractionID,
+    InfractionIDRange,
+    Options,
+    UserID,
+)
 from ouranos.utils.emojis import TICK_GREEN
-from ouranos.utils.errors import OuranosCommandError, UnexpectedError, NotConfigured, \
-    InfractionNotFound, ModlogMessageNotFound, HistoryNotFound
-from ouranos.utils.format import approximate_timedelta, exact_timedelta, TableFormatter
+from ouranos.utils.errors import (
+    HistoryNotFound,
+    InfractionNotFound,
+    ModlogMessageNotFound,
+    NotConfigured,
+    OuranosCommandError,
+    UnexpectedError,
+)
+from ouranos.utils.format import TableFormatter, approximate_timedelta, exact_timedelta
+from ouranos.utils.modlog import LogEvent, MassActionLogEvent, SmallLogEvent
 
 LOGS = {
-    'note': modlog.log_note,
-    'warn': modlog.log_warn,
-    'mute': modlog.log_mute,
-    'unmute': modlog.log_unmute,
-    'kick': modlog.log_kick,
-    'ban': modlog.log_ban,
-    'forceban': modlog.log_forceban,
-    'autoban': modlog.log_automod_ban,
-    'unban': modlog.log_unban
+    "note": modlog.log_note,
+    "warn": modlog.log_warn,
+    "mute": modlog.log_mute,
+    "unmute": modlog.log_unmute,
+    "kick": modlog.log_kick,
+    "ban": modlog.log_ban,
+    "forceban": modlog.log_forceban,
+    "autoban": modlog.log_automod_ban,
+    "unban": modlog.log_unban,
 }
 
 
 SMALL_LOGS = {
-    'mute-expire': modlog.log_mute_expire,
-    'ban-expire': modlog.log_ban_expire,
-    'mute-persist': modlog.log_mute_persist,
-    'beemo-ban': modlog.log_beemo_ban
+    "mute-expire": modlog.log_mute_expire,
+    "ban-expire": modlog.log_ban_expire,
+    "mute-persist": modlog.log_mute_persist,
+    "beemo-ban": modlog.log_beemo_ban,
 }
 
 
-MASS_ACTION_LOGS = {
-    'ban': modlog.log_mass_ban,
-    'mute': modlog.log_mass_mute
-}
+MASS_ACTION_LOGS = {"ban": modlog.log_mass_ban, "mute": modlog.log_mass_mute}
 
 
 MUTE = UNMUTE = discord.AuditLogAction.member_role_update
@@ -64,17 +72,18 @@ class FetchedAuditLogEntry:
 
 class ReasonNoteDuration(Options):
     OPTIONS = {
-        'reason': 'reason',
-        'r': 'reason',
-        'note': 'note',
-        'n': 'note',
-        'duration': 'duration',
-        'd': 'duration'
+        "reason": "reason",
+        "r": "reason",
+        "note": "note",
+        "n": "note",
+        "duration": "duration",
+        "d": "duration",
     }
 
 
 class Modlog(Cog):
     """Modlog related commands."""
+
     def __init__(self, bot):
         self.bot = bot
         self._last_case_id_cache = {}
@@ -109,7 +118,7 @@ class Modlog(Cog):
     def maybe_note_from_audit_reason(self, reason):
         if not reason:
             return None, None
-        s = reason.split('--', 1)
+        s = reason.split("--", 1)
         reason, note = (s[0], s[1]) if len(s) == 2 else (reason, None)
         reason = reason.strip() if reason else None
         note = note.strip() if note else None
@@ -118,7 +127,9 @@ class Modlog(Cog):
     @tasks.loop(seconds=10)
     async def _ensure_audit_log_fetcher_alive(self):
         if not self._audit_log_fetcher_task or self._audit_log_fetcher_task.done():
-            self._audit_log_fetcher_task = asyncio.create_task(self._audit_log_fetcher_loop())
+            self._audit_log_fetcher_task = asyncio.create_task(
+                self._audit_log_fetcher_loop()
+            )
 
     async def _audit_log_fetcher_loop(self):
         await self.bot.wait_until_ready()
@@ -128,7 +139,12 @@ class Modlog(Cog):
 
         while True:
             found, missed = await self._audit_log_fetcher()
-            t = default_sleep + 2*(found > 0)*last_run + int(found/30) + 5*(missed > 0)
+            t = (
+                default_sleep
+                + 2 * (found > 0) * last_run
+                + int(found / 30)
+                + 5 * (missed > 0)
+            )
             last_run = bool(found + missed)
             if t != default_sleep:
                 logger.info(f"sleeping {t} seconds")
@@ -151,21 +167,29 @@ class Modlog(Cog):
         for guild_id, infractions in to_check.items():
             guild = self.bot.get_guild(guild_id)
 
-            async for entry in guild.audit_logs(limit=5+2*len(infractions)):
+            async for entry in guild.audit_logs(limit=5 + 2 * len(infractions)):
                 if entry.action not in [KICK, MUTE, BAN, UNBAN]:
                     continue
                 key = (entry.action, entry.target.id)
-                if key in infractions and infractions[key](entry):  # we found it, dispatch the event
+                if key in infractions and infractions[key](
+                    entry
+                ):  # we found it, dispatch the event
                     found += 1
                     infractions.pop(key)
-                    self.bot.dispatch(f'fetched_audit_log_entry_{guild_id}', FetchedAuditLogEntry(guild_id, key, entry))
+                    self.bot.dispatch(
+                        f"fetched_audit_log_entry_{guild_id}",
+                        FetchedAuditLogEntry(guild_id, key, entry),
+                    )
 
                 # if it's a ban, make sure we don't have any events looking for a kick that doesn't exist.
                 if entry.action == BAN:
                     if (k := KICK, entry.user.id) in infractions:
                         discarded += 1
                         infractions.pop(k)
-                        self.bot.dispatch(f'fetched_audit_log_entry_{guild_id}', FetchedAuditLogEntry(guild_id, k, entry))
+                        self.bot.dispatch(
+                            f"fetched_audit_log_entry_{guild_id}",
+                            FetchedAuditLogEntry(guild_id, k, entry),
+                        )
 
                 if not infractions:
                     break
@@ -175,35 +199,46 @@ class Modlog(Cog):
                 if action_type == KICK:
                     discarded += 1
                     infractions.pop((action_type, user_id))
-                    self.bot.dispatch(f'fetched_audit_log_entry_{guild_id}', FetchedAuditLogEntry(guild_id, (action_type, user_id), None))
+                    self.bot.dispatch(
+                        f"fetched_audit_log_entry_{guild_id}",
+                        FetchedAuditLogEntry(guild_id, (action_type, user_id), None),
+                    )
                 else:
                     check = infractions[action_type, user_id]
                     key = (action_type, guild_id, user_id, check)
-                    logger.debug(f"putting missed infraction {key[:3]} back in fetch queue.")
+                    logger.debug(
+                        f"putting missed infraction {key[:3]} back in fetch queue."
+                    )
                     self._audit_log_queue.append(key)
 
         missed = sum(len(infs) for infs in to_check.values())
         dt = time.monotonic() - t0
 
         if found or missed:
-            logger.info(f"fetched {found} audit log entries, unable to find {missed}, discarded {discarded}. task ran in {dt} seconds.")
-            
+            logger.info(
+                f"fetched {found} audit log entries, unable to find {missed}, discarded {discarded}. task ran in {dt} seconds."
+            )
+
         return found, missed
 
-    async def fetch_audit_log_entry(self, action_type, guild, user, check=lambda _: True):
+    async def fetch_audit_log_entry(
+        self, action_type, guild, user, check=lambda _: True
+    ):
         inf = (action_type, guild.id, user.id, check)
         key = (action_type, user.id)
         self._audit_log_queue.append(inf)
         try:
             entry = await self.bot.wait_for(
-                f'fetched_audit_log_entry_{guild.id}',
+                f"fetched_audit_log_entry_{guild.id}",
                 check=lambda e: e.key == key,
-                timeout=30
+                timeout=30,
             )
             return entry.the_real_entry
         except asyncio.TimeoutError:
             if action_type != KICK:
-                raise Exception(f"timed out for {tuple(str(i) for i in inf[:3])}.") from None
+                raise Exception(
+                    f"timed out for {tuple(str(i) for i in inf[:3])}."
+                ) from None
             return None
 
     async def mass_action_filter(self, type, guild, user, mod):
@@ -227,15 +262,18 @@ class Modlog(Cog):
 
         if moderator == self.bot.user:  # action was done by me
             return
-        elif moderator and moderator.id == 515067662028636170:  # Beemo (special support coming soontm)
-            await SmallLogEvent('beemo-ban', guild, user, None).dispatch()
+        elif (
+            moderator and moderator.id == 515067662028636170
+        ):  # Beemo (special support coming soontm)
+            await SmallLogEvent("beemo-ban", guild, user, None).dispatch()
             return
 
         # disable currently-active ban(s) for this user in this guild, if there are any
         await self.bot.run_in_background(
-            modlog.deactivate_infractions(guild.id, user.id, 'ban'))
+            modlog.deactivate_infractions(guild.id, user.id, "ban")
+        )
 
-        await LogEvent('ban', guild, user, moderator, reason, note, duration).dispatch()
+        await LogEvent("ban", guild, user, moderator, reason, note, duration).dispatch()
 
     @Cog.listener()
     async def on_member_remove(self, member):
@@ -266,7 +304,9 @@ class Modlog(Cog):
             if moderator == self.bot.user:  # action was done by me
                 return
 
-            await LogEvent('kick', guild, member, moderator, reason, note, None).dispatch()
+            await LogEvent(
+                "kick", guild, member, moderator, reason, note, None
+            ).dispatch()
 
     @Cog.listener()
     async def on_member_update(self, before, after):
@@ -286,8 +326,12 @@ class Modlog(Cog):
             logger.debug("detected unmute")
 
             entry = await self.fetch_audit_log_entry(
-                UNMUTE, guild, member,
-                check=lambda e: mute_role in e.before.roles and mute_role not in e.after.roles)
+                UNMUTE,
+                guild,
+                member,
+                check=lambda e: mute_role in e.before.roles
+                and mute_role not in e.after.roles,
+            )
 
             if entry.id == self._last_audit_id_cache.get(guild.id):
                 return
@@ -301,16 +345,23 @@ class Modlog(Cog):
 
             # disable currently-active mute(s) for this user in this guild, if there are any
             await self.bot.run_in_background(
-                modlog.deactivate_infractions(guild.id, member.id, 'mute'))
+                modlog.deactivate_infractions(guild.id, member.id, "mute")
+            )
 
-            await LogEvent('unmute', guild, member, moderator, reason, note, None).dispatch()
+            await LogEvent(
+                "unmute", guild, member, moderator, reason, note, None
+            ).dispatch()
 
         elif mute_role in after.roles and mute_role not in before.roles:  # mute
             logger.debug("detected mute")
 
             entry = await self.fetch_audit_log_entry(
-                MUTE, guild, member,
-                check=lambda e: mute_role in e.after.roles and mute_role not in e.before.roles)
+                MUTE,
+                guild,
+                member,
+                check=lambda e: mute_role in e.after.roles
+                and mute_role not in e.before.roles,
+            )
 
             if entry.id == self._last_audit_id_cache.get(guild.id):
                 return
@@ -325,9 +376,12 @@ class Modlog(Cog):
 
             # disable currently-active mute(s) for this user in this guild, if there are any
             await self.bot.run_in_background(
-                modlog.deactivate_infractions(guild.id, member.id, 'mute'))
+                modlog.deactivate_infractions(guild.id, member.id, "mute")
+            )
 
-            await LogEvent('mute', guild, member, moderator, reason, note, duration).dispatch()
+            await LogEvent(
+                "mute", guild, member, moderator, reason, note, duration
+            ).dispatch()
 
     @Cog.listener()
     async def on_member_unban(self, guild, user):
@@ -347,10 +401,11 @@ class Modlog(Cog):
 
         # disable currently-active ban(s) for this user in this guild, if there are any
         await self.bot.run_in_background(
-            modlog.deactivate_infractions(guild.id, user.id, 'ban'))
+            modlog.deactivate_infractions(guild.id, user.id, "ban")
+        )
 
         # dispatch the event
-        await LogEvent('unban', guild, user, moderator, reason, note, None).dispatch()
+        await LogEvent("unban", guild, user, moderator, reason, note, None).dispatch()
 
     @Cog.listener()
     async def on_log(self, log):
@@ -358,7 +413,9 @@ class Modlog(Cog):
             return
 
         if isinstance(log, LogEvent):
-            await LOGS[log.type](log.guild, log.user, log.mod, log.reason, log.note, log.duration)
+            await LOGS[log.type](
+                log.guild, log.user, log.mod, log.reason, log.note, log.duration
+            )
 
     @Cog.listener()
     async def on_small_log(self, log):
@@ -374,14 +431,16 @@ class Modlog(Cog):
             return
 
         if isinstance(log, MassActionLogEvent):
-            await MASS_ACTION_LOGS[log.type](log.guild, log.users, log.mod, log.reason, log.note, log.duration)
+            await MASS_ACTION_LOGS[log.type](
+                log.guild, log.users, log.mod, log.reason, log.note, log.duration
+            )
 
     async def _get_modlog_channel(self, guild):
         config = await db.get_config(guild)
         modlog_channel = guild.get_channel(config.modlog_channel_id if config else 0)
 
         if not modlog_channel:
-            raise NotConfigured('modlog_channel')
+            raise NotConfigured("modlog_channel")
 
         return modlog_channel
 
@@ -420,14 +479,14 @@ class Modlog(Cog):
 
         raise ModlogMessageNotFound(infraction_id, ctx)
 
-    @group(aliases=['case', 'inf'])
+    @group(aliases=["case", "inf"])
     @server_mod()
     async def infraction(self, ctx, infraction_id: InfractionID):
         """Base command for modlog. Passing an int will return the link to the message associated with a particular infraction."""
         message = await self._fetch_infraction_message(ctx, ctx.guild, infraction_id)
         await ctx.send(message.jump_url)
 
-    @infraction.command(name='info')
+    @infraction.command(name="info")
     @server_mod()
     async def infraction_info(self, ctx, infraction_id: InfractionID):
         """View the database entry for an infraction."""
@@ -440,8 +499,14 @@ class Modlog(Cog):
         else:
             duration = remaining = ""
 
-        user = await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id) or infraction.user_id
-        mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+        user = (
+            await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id)
+            or infraction.user_id
+        )
+        mod = (
+            await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id)
+            or infraction.mod_id
+        )
         dt_since = approximate_timedelta(time.time() - infraction.created_at)
 
         await ctx.send(
@@ -453,9 +518,10 @@ class Modlog(Cog):
             f"Reason: {infraction.reason}\n"
             f"Note: {infraction.note}\n"
             f"Active: {infraction.active}\n"
-            f"```")
+            f"```"
+        )
 
-    @infraction.command(name='view')
+    @infraction.command(name="view")
     @server_mod()
     async def infraction_view(self, ctx, infraction_id: InfractionID):
         """View the logged message for an infraction."""
@@ -464,19 +530,19 @@ class Modlog(Cog):
 
     def infraction_to_dict(self, infraction):
         return {
-            'infraction_id': infraction.infraction_id,
-            'user_id': infraction.user_id,
-            'mod_id': infraction.mod_id,
-            'message_id': infraction.message_id,
-            'type': infraction.type,
-            'reason': infraction.reason,
-            'note': infraction.note,
-            'created_at': str(infraction.created_at) if infraction.created_at else None,
-            'ends_at': str(infraction.ends_at) if infraction.ends_at else None,
-            'active': infraction.active
+            "infraction_id": infraction.infraction_id,
+            "user_id": infraction.user_id,
+            "mod_id": infraction.mod_id,
+            "message_id": infraction.message_id,
+            "type": infraction.type,
+            "reason": infraction.reason,
+            "note": infraction.note,
+            "created_at": str(infraction.created_at) if infraction.created_at else None,
+            "ends_at": str(infraction.ends_at) if infraction.ends_at else None,
+            "active": infraction.active,
         }
 
-    @infraction.command(name='raw')
+    @infraction.command(name="raw")
     @server_mod()
     async def infraction_raw(self, ctx, infraction_id: InfractionID):
         """View the database entry for an infraction in JSON format."""
@@ -484,7 +550,7 @@ class Modlog(Cog):
         serialized = str(self.infraction_to_dict(infraction))
         await ctx.send("```py\n" + serialized + "\n```")
 
-    @command(aliases=['reason', 'edit-reason'])
+    @command(aliases=["reason", "edit-reason"])
     @server_mod()
     async def editr(self, ctx, infraction_id: InfractionID, *, new_reason):
         """Edit the reason for an infraction."""
@@ -493,19 +559,25 @@ class Modlog(Cog):
         # handle bulk edit
         if infraction.bulk_infraction_id_range:
             start, end = infraction.bulk_infraction_id_range
-            await ctx.confirm_action(f"This will edit {end - start + 1} infractions. Are you sure? (y/n)")
+            await ctx.confirm_action(
+                f"This will edit {end - start + 1} infractions. Are you sure? (y/n)"
+            )
             infraction_ids = list(range(start, end + 1))
             infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
             m = await ctx.send("Editing...")
-            _, message = await modlog.edit_infractions_and_messages_bulk(infractions, reason=new_reason, edited_by=ctx.author)
+            _, message = await modlog.edit_infractions_and_messages_bulk(
+                infractions, reason=new_reason, edited_by=ctx.author
+            )
             await m.edit(content=message.jump_url)
 
         # edit normally
         else:
-            _, message = await modlog.edit_infraction_and_message(infraction, reason=new_reason, edited_by=ctx.author)
+            _, message = await modlog.edit_infraction_and_message(
+                infraction, reason=new_reason, edited_by=ctx.author
+            )
             await ctx.send(message.jump_url)
 
-    @command(aliases=['edit-note'])
+    @command(aliases=["edit-note"])
     @server_mod()
     async def editn(self, ctx, infraction_id: InfractionID, *, new_note):
         """Edit the note for an infraction."""
@@ -514,19 +586,25 @@ class Modlog(Cog):
         # handle bulk edit
         if infraction.bulk_infraction_id_range:
             start, end = infraction.bulk_infraction_id_range
-            await ctx.confirm_action(f"This will edit {end - start + 1} infractions. Are you sure? (y/n)")
+            await ctx.confirm_action(
+                f"This will edit {end - start + 1} infractions. Are you sure? (y/n)"
+            )
             infraction_ids = list(range(start, end + 1))
             infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
             m = await ctx.send("Editing...")
-            _, message = await modlog.edit_infractions_and_messages_bulk(infractions, note=new_note, edited_by=ctx.author)
+            _, message = await modlog.edit_infractions_and_messages_bulk(
+                infractions, note=new_note, edited_by=ctx.author
+            )
             await m.edit(content=message.jump_url)
 
         # edit normally
         else:
-            _, message = await modlog.edit_infraction_and_message(infraction, note=new_note, edited_by=ctx.author)
+            _, message = await modlog.edit_infraction_and_message(
+                infraction, note=new_note, edited_by=ctx.author
+            )
             await ctx.send(message.jump_url)
 
-    @command(aliases=['edit-duration'])
+    @command(aliases=["edit-duration"])
     @server_mod()
     async def editd(self, ctx, infraction_id: InfractionID, new_duration: Duration):
         """Edit the duration of an active infraction. Useful if the member is no longer in the server.
@@ -534,59 +612,84 @@ class Modlog(Cog):
         Note: this only works for mute and ban infractions.
         """
         infraction = await self._get_infraction(ctx.guild.id, infraction_id)
-        if infraction.type not in ('mute', 'ban'):
-            raise OuranosCommandError("This command only works for mute and ban infractions.")
+        if infraction.type not in ("mute", "ban"):
+            raise OuranosCommandError(
+                "This command only works for mute and ban infractions."
+            )
         elif not infraction.active:
-            raise OuranosCommandError("This infraction is not active. Editing the duration will have no effect.")
+            raise OuranosCommandError(
+                "This infraction is not active. Editing the duration will have no effect."
+            )
 
         # handle bulk edit
         if infraction.bulk_infraction_id_range:
             start, end = infraction.bulk_infraction_id_range
-            await ctx.confirm_action(f"This will edit {end - start + 1} infractions. Are you sure? (y/n)")
+            await ctx.confirm_action(
+                f"This will edit {end - start + 1} infractions. Are you sure? (y/n)"
+            )
             infraction_ids = list(range(start, end + 1))
             infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
 
             # make sure these infractions are valid
             for infraction in infractions:
-                if infraction.type not in ('mute', 'ban'):
-                    raise OuranosCommandError("This command only works for mute and ban infractions.")
+                if infraction.type not in ("mute", "ban"):
+                    raise OuranosCommandError(
+                        "This command only works for mute and ban infractions."
+                    )
 
             m = await ctx.send("Editing...")
-            _, message = await modlog.edit_infractions_and_messages_bulk(infractions, duration=new_duration, edited_by=ctx.author)
+            _, message = await modlog.edit_infractions_and_messages_bulk(
+                infractions, duration=new_duration, edited_by=ctx.author
+            )
             await m.edit(content=message.jump_url)
 
         # edit normally
         else:
-            _, message = await modlog.edit_infraction_and_message(infraction, duration=new_duration, edited_by=ctx.author)
+            _, message = await modlog.edit_infraction_and_message(
+                infraction, duration=new_duration, edited_by=ctx.author
+            )
             await ctx.send(message.jump_url)
 
-    @group(aliases=['bulk-edit'])
+    @group(aliases=["bulk-edit"])
     @server_admin()
-    async def bedit(self, ctx, field: ReasonNoteDuration, infraction_id_range: InfractionIDRange, *, new_value):
+    async def bedit(
+        self,
+        ctx,
+        field: ReasonNoteDuration,
+        infraction_id_range: InfractionIDRange,
+        *,
+        new_value,
+    ):
         """Edit a range of infractions simultaneously. Intended for infractions not already linked to a single a mass-action."""
         start, end = infraction_id_range
-        await ctx.confirm_action(f"This will edit {end - start + 1} infractions and all associated messages. Are you sure? (y/n)")
+        await ctx.confirm_action(
+            f"This will edit {end - start + 1} infractions and all associated messages. Are you sure? (y/n)"
+        )
         infraction_ids = list(range(start, end + 1))
         infractions = await self._get_infractions_bulk(ctx.guild.id, infraction_ids)
 
-        if field == 'duration':
+        if field == "duration":
             new_value = await Duration().convert(ctx, new_value)
 
             # make sure these infractions are valid
             for infraction in infractions:
-                if infraction.type not in ('mute', 'ban'):
-                    raise OuranosCommandError("Editing duration only works for mute and ban infractions.")
+                if infraction.type not in ("mute", "ban"):
+                    raise OuranosCommandError(
+                        "Editing duration only works for mute and ban infractions."
+                    )
 
         else:  # strip reason/note of leading/trailing whitespace
             new_value = new_value.strip()
 
         m = await ctx.send("Editing...")
-        kwargs = {field: new_value, 'edited_by': ctx.author}
-        i_list, m_count = await modlog.edit_infractions_and_messages_bulk(infractions, linked=False, **kwargs)
+        kwargs = {field: new_value, "edited_by": ctx.author}
+        i_list, m_count = await modlog.edit_infractions_and_messages_bulk(
+            infractions, linked=False, **kwargs
+        )
         i_count = len(i_list)
         await m.edit(content=f"Edited {i_count} infractions and {m_count} messages.")
 
-    @infraction.command(name='delete')
+    @infraction.command(name="delete")
     @server_admin()
     async def infraction_delete(self, ctx, infraction_id: InfractionID):
         """Remove all references to an infraction from a user's history.
@@ -599,10 +702,14 @@ class Modlog(Cog):
             if infraction_id in _list:
                 _list.remove(infraction_id)
         await db.edit_record(history)  # runs save() and ensures cache is updated
-        user = (await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id)) or infraction.user_id
-        await ctx.send(f"{TICK_GREEN} Removed infraction #{infraction_id} ({infraction.type}) for user {user}.")
+        user = (
+            await self.bot.get_or_fetch_member(ctx.guild, infraction.user_id)
+        ) or infraction.user_id
+        await ctx.send(
+            f"{TICK_GREEN} Removed infraction #{infraction_id} ({infraction.type}) for user {user}."
+        )
 
-    @infraction.command(name='search')
+    @infraction.command(name="search")
     @server_mod()
     async def infraction_search(self, ctx, *, args):
         """Advanced infraction database search command.
@@ -632,21 +739,24 @@ class Modlog(Cog):
         `--count`: Count the number of infractions instead of
             returning as a formatted table.
         """
+
         def infraction_type_converter(t):
-            if t.lower() in ['note', 'warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
+            if t.lower() in ["note", "warn", "mute", "unmute", "kick", "ban", "unban"]:
                 return t
             else:
-                raise OuranosCommandError('Invalid infraction type.')
+                raise OuranosCommandError("Invalid infraction type.")
 
         parser = Parser(add_help=False, allow_abbrev=False)
-        parser.add_argument('keywords', nargs='*')
-        parser.add_argument('--user')
-        parser.add_argument('--mod')
-        parser.add_argument('--type', type=infraction_type_converter)
-        parser.add_argument('--active', type=commands.core._convert_to_bool, default=None)
-        parser.add_argument('--or', action='store_true', dest='_or')
-        parser.add_argument('--not', action='store_true', dest='_not')
-        parser.add_argument('--count', action='store_true')
+        parser.add_argument("keywords", nargs="*")
+        parser.add_argument("--user")
+        parser.add_argument("--mod")
+        parser.add_argument("--type", type=infraction_type_converter)
+        parser.add_argument(
+            "--active", type=commands.core._convert_to_bool, default=None
+        )
+        parser.add_argument("--or", action="store_true", dest="_or")
+        parser.add_argument("--not", action="store_true", dest="_not")
+        parser.add_argument("--count", action="store_true")
 
         try:
             args = parser.parse_args(shlex.split(args))
@@ -656,10 +766,15 @@ class Modlog(Cog):
         query = []
 
         if args.keywords:
-            query.append(Q(
-                *[Q(reason__icontains=kw, note__icontains=kw, join_type='OR') for kw in args.keywords],
-                join_type='OR'
-            ))
+            query.append(
+                Q(
+                    *[
+                        Q(reason__icontains=kw, note__icontains=kw, join_type="OR")
+                        for kw in args.keywords
+                    ],
+                    join_type="OR",
+                )
+            )
 
         if args.user:
             converter = UserID()
@@ -684,7 +799,7 @@ class Modlog(Cog):
         if args.active is not None:
             query.append(Q(active=args.active))
 
-        the_real_query = Q(*query, join_type='OR' if args._or else 'AND')
+        the_real_query = Q(*query, join_type="OR" if args._or else "AND")
 
         if args._not:
             the_real_query.negate()
@@ -702,7 +817,7 @@ class Modlog(Cog):
             dt = (time.perf_counter() - start) * 1000.0
             rows = len(results)
             if rows == 0:
-                return await ctx.send(f'`{dt:.2f}ms: {results}`')
+                return await ctx.send(f"`{dt:.2f}ms: {results}`")
 
             results = sorted(results, key=lambda i: i.infraction_id)
             results = [self.infraction_to_dict(i) for i in results]
@@ -712,11 +827,13 @@ class Modlog(Cog):
             table.add_rows(list(r.values()) for r in results)
             render = table.render()
 
-            _s = 's' if rows != 1 else ''
-            fmt = f'```\n{render}\n```\n*Returned {rows} row{_s} in {dt:.2f}ms*'
+            _s = "s" if rows != 1 else ""
+            fmt = f"```\n{render}\n```\n*Returned {rows} row{_s} in {dt:.2f}ms*"
             if len(fmt) > 2000:
-                fp = io.BytesIO(fmt.encode('utf-8'))
-                await ctx.send('Too many results...', file=discord.File(fp, 'results.txt'))
+                fp = io.BytesIO(fmt.encode("utf-8"))
+                await ctx.send(
+                    "Too many results...", file=discord.File(fp, "results.txt")
+                )
             else:
                 await ctx.send(fmt)
 
@@ -726,7 +843,7 @@ class Modlog(Cog):
             raise HistoryNotFound(user_id)
         return history
 
-    @group(aliases=['h'])
+    @group(aliases=["h"])
     @server_mod()
     async def history(self, ctx, *, user: UserID):
         """Returns useful info on a user's recent infractions."""
@@ -735,23 +852,36 @@ class Modlog(Cog):
         s = ""
 
         h_by_type = {}
-        for _type in ['note', 'warn', 'mute', 'unmute', 'kick', 'ban', 'unban']:
+        for _type in ["note", "warn", "mute", "unmute", "kick", "ban", "unban"]:
             h_by_type.update({i: _type for i in getattr(history, _type)})
         infraction_ids = sorted(h_by_type.keys(), reverse=True)
-        infractions = [await modlog.get_infraction(ctx.guild.id, i) for i in infraction_ids]
+        infractions = [
+            await modlog.get_infraction(ctx.guild.id, i) for i in infraction_ids
+        ]
 
         if infractions:
             _recent = infractions[:5]
             s += f"Recent infractions for {user} (showing {len(_recent)}/{len(infractions)}):```\n"
             for infraction in _recent:
-                mod = await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id) or infraction.mod_id
+                mod = (
+                    await self.bot.get_or_fetch_member(ctx.guild, infraction.mod_id)
+                    or infraction.mod_id
+                )
                 dt = approximate_timedelta(now - infraction.created_at)
-                dt_tot = exact_timedelta(infraction.ends_at - infraction.created_at) if infraction.ends_at else None
-                dt_rem = approximate_timedelta(infraction.ends_at - now) if infraction.ends_at else None
-                active = 'active ' if infraction.active else ''
+                dt_tot = (
+                    exact_timedelta(infraction.ends_at - infraction.created_at)
+                    if infraction.ends_at
+                    else None
+                )
+                dt_rem = (
+                    approximate_timedelta(infraction.ends_at - now)
+                    if infraction.ends_at
+                    else None
+                )
+                active = "active " if infraction.active else ""
                 s += f"#{infraction.infraction_id}: {active}{infraction.type} by {mod} ({dt} ago)\n"
                 if dt_tot:
-                    rem = f" ({dt_rem} remaining)" if infraction.active else ''
+                    rem = f" ({dt_rem} remaining)" if infraction.active else ""
                     s += f"\tduration: {dt_tot}{rem}\n"
                 if infraction.reason:
                     s += f"\treason: {infraction.reason}\n"
@@ -762,23 +892,25 @@ class Modlog(Cog):
 
         await ctx.send(s)
 
-    @history.command(name='delete')
+    @history.command(name="delete")
     @server_admin()
     async def history_delete(self, ctx, *, user: UserID):
         """Reset a user's infraction history.
         This does not delete any infractions, just cleans the references to them in their history.
         """
-        await ctx.confim_action(f'Are you sure you want to wipe infraction history for {user}? '
-                                f'This could result in currently-active infractions behaving unexpectedly.')
+        await ctx.confim_action(
+            f"Are you sure you want to wipe infraction history for {user}? "
+            f"This could result in currently-active infractions behaving unexpectedly."
+        )
         try:
             await db.History.filter(guild_id=ctx.guild.id, user_id=user.id).delete()
             if (key := (ctx.guild.id, user.id)) in db.history_cache:
                 db.history_cache.pop(key)
         except Exception as e:
-            raise UnexpectedError(f'{e.__class__.__name__}: {e}')
+            raise UnexpectedError(f"{e.__class__.__name__}: {e}")
         await ctx.send(f"{TICK_GREEN} Removed infraction history for {user}.")
 
-    @history.command(name='raw')
+    @history.command(name="raw")
     @server_mod()
     async def history_raw(self, ctx, *, user: UserID):
         """View the database entry for a user's infraction history."""
@@ -793,7 +925,8 @@ class Modlog(Cog):
             f"ban: {history.ban}\n"
             f"unban: {history.unban}\n"
             f"active: {history.active}\n"
-            f"```")
+            f"```"
+        )
 
 
 def setup(bot):

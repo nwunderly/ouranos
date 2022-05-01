@@ -1,12 +1,12 @@
 import csv
+
 import discord
+from auth import DB_URL_PROD, TOKEN_PROD
 from discord.ext import commands
 
 from ouranos.utils import db, modlog
-from auth import DB_URL_PROD, TOKEN_PROD
 
-
-bot = commands.Bot(command_prefix='===', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix="===", intents=discord.Intents.all())
 bot.RUNNING = False
 bot.GUILD = None
 bot.ROLE = None
@@ -48,18 +48,26 @@ async def load_from_aperture():
     print("===== BEGINNING LOAD PHASE =====")
 
     print("Loading from aperture infractions.csv.")
-    with open("../data/infractions.csv", errors='ignore') as fp:
+    with open("../data/infractions.csv", errors="ignore") as fp:
         lines = fp.readlines()
 
     guild = bot.get_guild(GUILD)
     aperture = guild.get_member(330770985450078208)
 
     for line in csv.reader(lines):
-        infraction_id, user_id, user_username, mod_id, mod_username, infraction_type, reason = line
+        (
+            infraction_id,
+            user_id,
+            user_username,
+            mod_id,
+            mod_username,
+            infraction_type,
+            reason,
+        ) = line
         infraction_id = int(infraction_id)
         user_id = int(user_id)
         mod_id = int(mod_id)
-        reason = reason.strip('\"')
+        reason = reason.strip('"')
 
         mod = guild.get_member(mod_id) if mod_id != user_id else aperture
 
@@ -67,11 +75,15 @@ async def load_from_aperture():
             (user_id in MODS)
             or (not mod)
             or (user_username.lower().startswith("deleted user"))
-            or (infraction_type not in ['warning', 'mute', 'tempmute', 'ban'])
+            or (infraction_type not in ["warning", "mute", "tempmute", "ban"])
         ):
             continue
-        print(f"Processing infraction {infraction_id} for {user_id=} {infraction_type=}")
-        infraction_type = {'warning': 'warn', 'tempmute': 'mute'}.get(infraction_type) or infraction_type
+        print(
+            f"Processing infraction {infraction_id} for {user_id=} {infraction_type=}"
+        )
+        infraction_type = {"warning": "warn", "tempmute": "mute"}.get(
+            infraction_type
+        ) or infraction_type
         infractions.append(
             Infraction(infraction_id, user_id, mod_id, infraction_type, reason)
         )
@@ -91,7 +103,9 @@ async def dump_to_ouranos():
             infraction.mod_id,
             infraction.type,
             infraction.reason,
-            None, None, False
+            None,
+            None,
+            False,
         )
         print(f"#{i.infraction_id} created for {i.user_id=} {i.type=}")
 
@@ -107,5 +121,5 @@ async def main():
     await bot.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     bot.run(TOKEN_PROD)

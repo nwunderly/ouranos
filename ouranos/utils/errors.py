@@ -13,7 +13,9 @@ class UnexpectedError(OuranosCommandError):
 
 class NotConfigured(OuranosCommandError):
     def __init__(self, option):
-        super().__init__(f"This guild is missing the **{option}** configuration option.")
+        super().__init__(
+            f"This guild is missing the **{option}** configuration option."
+        )
 
 
 class ActionTimedOut(OuranosCommandError):
@@ -37,7 +39,9 @@ class UserNotInGuild(ModerationError):
 
 class BotMissingPermission(ModerationError):
     def __init__(self, permission):
-        super().__init__(f"I could not perform that action because I'm missing the **{permission}** permission.")
+        super().__init__(
+            f"I could not perform that action because I'm missing the **{permission}** permission."
+        )
 
 
 class BotRoleHierarchyError(ModerationError):
@@ -47,7 +51,9 @@ class BotRoleHierarchyError(ModerationError):
 
 class ModActionOnMod(ModerationError):
     def __init__(self):
-        super().__init__("You cannot perform moderation actions on other server moderators!")
+        super().__init__(
+            "You cannot perform moderation actions on other server moderators!"
+        )
 
 
 class ModlogError(OuranosCommandError):
@@ -61,10 +67,12 @@ class InfractionNotFound(ModlogError):
 
 class ModlogMessageNotFound(ModlogError):
     def __init__(self, infraction_id, ctx=None):
-        p = ctx.prefix if ctx else '?'
-        cmd = ctx.invoked_parents[0] if ctx else 'infraction'
-        super().__init__(f"I couldn't find a message for infraction #{infraction_id}. "
-                         f"Try `{p}{cmd} info {infraction_id}` instead.")
+        p = ctx.prefix if ctx else "?"
+        cmd = ctx.invoked_parents[0] if ctx else "infraction"
+        super().__init__(
+            f"I couldn't find a message for infraction #{infraction_id}. "
+            f"Try `{p}{cmd} info {infraction_id}` instead."
+        )
 
 
 class HistoryNotFound(ModlogError):
