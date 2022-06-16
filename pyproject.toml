@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "ouranos"
+version = "1.7.0"
+description = "ouranos mod bot"
+author = "nwunderly <nwunder.dev@gmail.com>"
+license = "MIT"
+repository = "https://github.com/nwunderly/ouranos"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+disnake = "^2.0.0"
+loguru = "^0.6.0"
+python-dotenv = "^0.19.2"
+uvloop = {version = "0.16.0", optional = true}
+disnake-jishaku = "^2.3.2"
+pydantic = "^1.9.0"
+PyYaml = "^5.4.1"
+psutil = "^5.8"
+tortoise-orm = {version = "0.17", extras = "asyncpg"}
+pygit2 = ""
+
+[tool.poetry.dev-dependencies]
+black = "^22.1.0"
+isort = "^5.10.1"
+pre-commit = "^2.16.0"
+
+[tool.taskipy.tasks]
+start = "python -m launcher.py"
+lint = "black . && isort --profile black ."
+
+[tool.black]
+line-length = 120
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
