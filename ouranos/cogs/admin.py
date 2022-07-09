@@ -8,7 +8,7 @@ import textwrap
 import time
 import traceback
 
-import discord
+import disnake
 from loguru import logger
 from tortoise import Tortoise
 
@@ -326,9 +326,9 @@ class Admin(Cog):
                         await ctx.send("Content too big to be printed.")
                     else:
                         await ctx.send(fmt)
-            except discord.Forbidden:
+            except disnake.Forbidden:
                 pass
-            except discord.HTTPException as e:
+            except disnake.HTTPException as e:
                 await ctx.send(f"Unexpected error: `{e}`")
 
     @command()
@@ -366,7 +366,7 @@ class Admin(Cog):
         fmt = f"```\n{render}\n```\n*Returned {rows} row{_s} in {dt:.2f}ms*"
         if len(fmt) > 2000:
             fp = io.BytesIO(fmt.encode("utf-8"))
-            await ctx.send("Too many results...", file=discord.File(fp, "results.txt"))
+            await ctx.send("Too many results...", file=disnake.File(fp, "results.txt"))
         else:
             await ctx.send(fmt)
 
@@ -386,7 +386,7 @@ class Admin(Cog):
     @bot_admin()
     async def cat(self, ctx, file):
         """Upload the contents of a text file to Discord."""
-        await ctx.send(file=discord.File(file))
+        await ctx.send(file=disnake.File(file))
 
     # TODO: hot-reload functionality for imported modules
     # @command(aliases=['reload-module'])

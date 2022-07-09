@@ -1,6 +1,6 @@
 import asyncio
 
-from discord.ext import commands
+from disnake.ext import commands
 
 from ouranos.utils.errors import ActionCanceled, ActionTimedOut
 

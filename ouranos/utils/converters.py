@@ -1,8 +1,8 @@
 import re
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import BadArgument, Converter
+import disnake
+from disnake.ext import commands
+from disnake.ext.commands import BadArgument, Converter
 
 from ouranos.utils import db, modlog
 from ouranos.utils.errors import BotMissingPermission, NotConfigured
@@ -15,9 +15,9 @@ class FetchedUser(Converter):
             raise BadArgument("Not a valid user ID.")
         try:
             return await ctx.bot.fetch_user(argument)
-        except discord.NotFound:
+        except disnake.NotFound:
             raise BadArgument("User not found.") from None
-        except discord.HTTPException:
+        except disnake.HTTPException:
             raise BadArgument("An error occurred while fetching the user.") from None
 
 
@@ -111,7 +111,7 @@ class MentionOrUserID(Converter):
         except ValueError:
             raise BadArgument(f"{argument} is not a valid user or user ID.") from None
         else:
-            return discord.Object(member_id)
+            return disnake.Object(member_id)
 
 
 class MutedUser(Converter):
@@ -136,7 +136,7 @@ class MutedUser(Converter):
         if history and history.active:
             for i in history.active:
                 if i in history.mute:
-                    return discord.Object(id=member_id)
+                    return disnake.Object(id=member_id)
         return None
 
     async def convert(self, ctx, argument):
@@ -160,12 +160,12 @@ class BannedUser(Converter):
         if argument.isdigit():
             member_id = int(argument, base=10)
             try:
-                return await ctx.guild.fetch_ban(discord.Object(id=member_id)), True
-            except discord.NotFound:
+                return await ctx.guild.fetch_ban(disnake.Object(id=member_id)), True
+            except disnake.NotFound:
                 raise BadArgument("This user is not banned.") from None
 
         ban_list = await ctx.guild.bans()
-        entity = discord.utils.find(lambda u: str(u.user) == argument, ban_list)
+        entity = disnake.utils.find(lambda u: str(u.user) == argument, ban_list)
         if entity is None:
             raise BadArgument("This user is not banned.")
         return entity, True
@@ -179,7 +179,7 @@ class BannedUser(Converter):
         if history and history.active:
             for i in history.active:
                 if i in history.ban:
-                    return discord.Object(id=member_id)
+                    return disnake.Object(id=member_id)
         return None
 
     async def convert(self, ctx, argument):

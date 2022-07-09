@@ -1,6 +1,6 @@
 import itertools
 
-from discord.ext import commands as _commands
+from disnake.ext import commands as _commands
 
 _command_init_order = ["help"]
 

@@ -4,8 +4,8 @@ import json
 import random
 import signal
 
-import discord
-from discord.ext import commands, tasks
+import disnake
+from disnake.ext import commands, tasks
 from loguru import logger
 
 from ouranos.dpy.command import HelpCommand
@@ -188,21 +188,21 @@ class Ouranos(commands.AutoShardedBot):
             await ctx.send(f"{TICK_RED} An unexpected error occurred:```\n{error}\n```")
         elif isinstance(error, OuranosCommandError):
             await ctx.send(f"{TICK_RED} {error}")
-        elif isinstance(error, discord.Forbidden):
+        elif isinstance(error, disnake.Forbidden):
             await ctx.send(
                 f"{TICK_RED} I do not have permission to execute this action."
             )
         elif isinstance(error, commands.CommandInvokeError):
             error = error.original or error
-            if isinstance(error, discord.Forbidden):
+            if isinstance(error, disnake.Forbidden):
                 await ctx.send(
                     f"{TICK_RED} I do not have permission to execute this action."
                 )
-            elif isinstance(error, discord.NotFound):
+            elif isinstance(error, disnake.NotFound):
                 await ctx.send(
                     f"{TICK_RED} Not found: {error.text.lower().capitalize()}."
                 )
-            elif isinstance(error, discord.HTTPException):
+            elif isinstance(error, disnake.HTTPException):
                 await ctx.send(
                     f"{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```"
                 )
@@ -222,7 +222,7 @@ class Ouranos(commands.AutoShardedBot):
                 # f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
         try:
             await self._respond_to_error(ctx, exception)
-        except discord.DiscordException:
+        except disnake.DiscordException:
             pass
 
     async def on_command_completion(self, ctx):
@@ -247,14 +247,14 @@ class Ouranos(commands.AutoShardedBot):
             guild_count=len(self.guilds),
         )
         if name.lower().startswith("playing "):
-            activity = discord.Game(name.replace("playing ", ""))
+            activity = disnake.Game(name.replace("playing ", ""))
         elif name.lower().startswith("watching "):
-            activity = discord.Activity(
-                type=discord.ActivityType.watching, name=name.replace("watching ", "")
+            activity = disnake.Activity(
+                type=disnake.ActivityType.watching, name=name.replace("watching ", "")
             )
         elif name.lower().startswith("listening to "):
-            activity = discord.Activity(
-                type=discord.ActivityType.listening,
+            activity = disnake.Activity(
+                type=disnake.ActivityType.listening,
                 name=name.replace("listening to ", ""),
             )
         if activity:
@@ -294,7 +294,7 @@ class Ouranos(commands.AutoShardedBot):
         if shard.is_ws_ratelimited():
             try:
                 member = await guild.fetch_member(member_id)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 return None
             else:
                 return member

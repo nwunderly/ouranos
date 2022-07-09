@@ -4,8 +4,8 @@ import shlex
 import time
 from collections import defaultdict, deque
 
-import discord
-from discord.ext import commands, tasks
+import disnake
+from disnake.ext import commands, tasks
 from loguru import logger
 from tortoise.queryset import Q
 
@@ -57,10 +57,10 @@ SMALL_LOGS = {
 MASS_ACTION_LOGS = {"ban": modlog.log_mass_ban, "mute": modlog.log_mass_mute}
 
 
-MUTE = UNMUTE = discord.AuditLogAction.member_role_update
-BAN = discord.AuditLogAction.ban
-UNBAN = discord.AuditLogAction.unban
-KICK = discord.AuditLogAction.kick
+MUTE = UNMUTE = disnake.AuditLogAction.member_role_update
+BAN = disnake.AuditLogAction.ban
+UNBAN = disnake.AuditLogAction.unban
+KICK = disnake.AuditLogAction.kick
 
 
 class FetchedAuditLogEntry:
@@ -474,7 +474,7 @@ class Modlog(Cog):
         if message_id:
             try:
                 return await modlog_channel.fetch_message(message_id)
-            except discord.NotFound:
+            except disnake.NotFound:
                 pass
 
         raise ModlogMessageNotFound(infraction_id, ctx)
@@ -832,7 +832,7 @@ class Modlog(Cog):
             if len(fmt) > 2000:
                 fp = io.BytesIO(fmt.encode("utf-8"))
                 await ctx.send(
-                    "Too many results...", file=discord.File(fp, "results.txt")
+                    "Too many results...", file=disnake.File(fp, "results.txt")
                 )
             else:
                 await ctx.send(fmt)

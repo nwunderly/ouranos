@@ -2,7 +2,7 @@ import asyncio
 import re
 import time
 
-import discord
+import disnake
 
 from ouranos.bot import Ouranos
 from ouranos.utils import db
@@ -313,7 +313,7 @@ async def edit_infraction_and_message(infraction, **kwargs):
     i = await db.edit_record(infraction, **k1)
     try:
         m = await edit_log_message(infraction, **k2)
-    except discord.HTTPException as e:
+    except disnake.HTTPException as e:
         raise OuranosCommandError(
             f"I edited the infraction, but was unable to edit the modlog message "
             f"({e.text.lower().capitalize()})."
@@ -361,7 +361,7 @@ async def edit_infractions_and_messages_bulk(infractions, linked=True, **kwargs)
     if linked:
         try:
             m = await edit_log_message(inf, **k2)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             raise OuranosCommandError(
                 f"I edited the infractions, but was unable to edit the modlog message "
                 f"({e.text.lower()})."
@@ -386,7 +386,7 @@ async def edit_infractions_and_messages_bulk(infractions, linked=True, **kwargs)
             try:
                 await edit_log_message(inf, **k2)
                 count += 1
-            except discord.HTTPException as e:
+            except disnake.HTTPException as e:
                 raise OuranosCommandError(
                     f"I edited the infractions, but was unable to edit the modlog message "
                     f"for #{inf.infraction_id} ({e.text.lower()})."

@@ -1,13 +1,13 @@
-import discord
+import disnake
 
 
 class Settings:
-    version = "1.6.3"
+    version = "1.6.4"
     prefix = "?"
     description = "A simple and opinionated Discord moderation bot."
     author = "nwunder#4003"
 
-    embed_color = discord.Color(0x7289DA)
+    embed_color = disnake.Color(0x7289DA)
 
     invite_permissions = 2110258423
 
@@ -21,7 +21,7 @@ class Settings:
     repo_url = "https://github.com/nwunderly/ouranos"
 
     cogs = [
-        "jishaku",
+        # "jishaku",
         "ouranos.cogs.admin",
         "ouranos.cogs.config",
         "ouranos.cogs.general",
@@ -43,24 +43,26 @@ class Settings:
         "listening to nwunder scream",
     ]
 
-    intents = discord.Intents(
-        guilds=True,
-        members=True,
+    intents = disnake.Intents(
         bans=True,
-        emojis=True,
-        integrations=False,
-        webhooks=False,
-        invites=False,
-        voice_states=False,
-        presences=False,
-        guild_messages=True,
         dm_messages=False,
-        guild_reactions=False,
         dm_reactions=False,
-        guild_typing=False,
         dm_typing=False,
+        emojis=False,
+        emojis_and_stickers=False,
+        guild_messages=True,
+        guild_reactions=False,
+        guild_typing=False,
+        guilds=True,
+        integrations=False,
+        invites=True,
+        members=True,
+        message_content=True,
+        presences=False,
+        voice_states=False,
+        webhooks=False,
     )
 
-    allowed_mentions = discord.AllowedMentions(
+    allowed_mentions = disnake.AllowedMentions(
         everyone=False, users=True, roles=False, replied_user=True
     )

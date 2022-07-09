@@ -3,7 +3,7 @@ import itertools
 import sys
 import time
 
-import discord
+import disnake
 import psutil
 import pygit2
 
@@ -87,7 +87,7 @@ class General(Cog):
     @command()
     async def about(self, ctx):
         """Some info about me!"""
-        embed = discord.Embed(
+        embed = disnake.Embed(
             color=Settings.embed_color, description=self.bot.description
         )
         embed.set_author(name=f"Ouranos", icon_url=Settings.bot_av_url)
@@ -95,7 +95,7 @@ class General(Cog):
         py_v = sys.version_info
         ver = (
             f"{BOTDEV} Ouranos v{Settings.version}\n"
-            f"{PYTHON} Made with discord.py {discord.__version__}, Python {py_v.major}.{py_v.minor}.{py_v.micro}\n"
+            f"{PYTHON} Made with disnake {disnake.__version__}, Python {py_v.major}.{py_v.minor}.{py_v.micro}\n"
             f"\u200b"
         )
         embed.add_field(name="\u200b", value=ver, inline=False)

@@ -2,11 +2,11 @@ import re
 from urllib.parse import urlparse
 
 import aiohttp
-import discord
-from auth import PHISH_API, PHISH_IDENTITY
-from discord.ext import commands
+import disnake
+from disnake.ext import commands
 from loguru import logger
 
+from auth import PHISH_IDENTITY
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
 from ouranos.utils import db
@@ -18,6 +18,8 @@ from ouranos.utils.errors import (
     OuranosCommandError,
 )
 from ouranos.utils.modlog import LogEvent
+
+PHISH_API = "https://phish.sinking.yachts/v2"
 
 
 def _load_file(file):

@@ -1,12 +1,12 @@
 import csv
 
-import discord
-from auth import DB_URL_PROD, TOKEN_PROD
-from discord.ext import commands
+import disnake
+from disnake.ext import commands
 
+from auth import DB_URL_PROD, TOKEN_PROD
 from ouranos.utils import db, modlog
 
-bot = commands.Bot(command_prefix="===", intents=discord.Intents.all())
+bot = commands.Bot(command_prefix="===", intents=disnake.Intents.all())
 bot.RUNNING = False
 bot.GUILD = None
 bot.ROLE = None

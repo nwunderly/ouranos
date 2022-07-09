@@ -1,5 +1,5 @@
-import discord
-from discord.ext import commands
+import disnake
+from disnake.ext import commands
 
 from ouranos.settings import Settings
 from ouranos.utils import db
@@ -18,7 +18,7 @@ async def global_checks(ctx):
             await ctx.send(
                 "I won't respond to commands from blacklisted users or in blacklisted guilds!"
             )
-        except discord.Forbidden:
+        except disnake.Forbidden:
             pass
         return False
     return True

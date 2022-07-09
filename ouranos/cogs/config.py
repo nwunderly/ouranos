@@ -1,7 +1,7 @@
 from typing import Union
 
-import discord
-from discord.ext import commands
+import disnake
+from disnake.ext import commands
 
 from ouranos.dpy.cog import Cog
 from ouranos.dpy.command import command, group
@@ -89,7 +89,7 @@ class Config(Cog):
     @server_admin()
     @config_exists(True)
     async def modlog_channel(
-        self, ctx, channel: Union[discord.TextChannel, Zero] = None
+        self, ctx, channel: Union[disnake.TextChannel, Zero] = None
     ):
         """Edit this server's modlog channel. Passing 0 will disable this feature."""
         config = await db.get_config(ctx.guild)
@@ -106,14 +106,14 @@ class Config(Cog):
     @configure.command(aliases=["mute-role"])
     @server_admin()
     @config_exists(True)
-    async def mute_role(self, ctx, role: Union[discord.Role, Zero] = None):
+    async def mute_role(self, ctx, role: Union[disnake.Role, Zero] = None):
         """Edit this server's mute role. Passing 0 will disable this feature."""
         config = await db.get_config(ctx.guild)
         if role is None:
             r = config.mute_role_id
             return await ctx.send(
                 f"This server's mute role is set to <@&{r}> (id `{r}`).",
-                allowed_mentions=discord.AllowedMentions.none(),
+                allowed_mentions=disnake.AllowedMentions.none(),
             )
         elif role == 0:  # reset indicator
             role_id = 0
@@ -125,14 +125,14 @@ class Config(Cog):
     @configure.command(aliases=["admin-role"])
     @server_admin()
     @config_exists(True)
-    async def admin_role(self, ctx, role: Union[discord.Role, Zero] = None):
+    async def admin_role(self, ctx, role: Union[disnake.Role, Zero] = None):
         """Edit this server's admin role. Passing 0 will disable this feature."""
         config = await db.get_config(ctx.guild)
         if role is None:
             r = config.admin_role_id
             return await ctx.send(
                 f"This server's admin role is set to <@&{r}> (id `{r}`).",
-                allowed_mentions=discord.AllowedMentions.none(),
+                allowed_mentions=disnake.AllowedMentions.none(),
             )
         elif role == 0:  # reset indicator
             role_id = 0
@@ -144,14 +144,14 @@ class Config(Cog):
     @configure.command(aliases=["mod-role"])
     @server_admin()
     @config_exists(True)
-    async def mod_role(self, ctx, role: Union[discord.Role, Zero] = None):
+    async def mod_role(self, ctx, role: Union[disnake.Role, Zero] = None):
         """Edit this server's mod role. Passing 0 will disable this feature."""
         config = await db.get_config(ctx.guild)
         if role is None:
             r = config.mod_role_id
             return await ctx.send(
                 f"This server's mod role is set to <@&{r}> (id `{r}`).",
-                allowed_mentions=discord.AllowedMentions.none(),
+                allowed_mentions=disnake.AllowedMentions.none(),
             )
         elif role == 0:  # reset indicator
             role_id = 0

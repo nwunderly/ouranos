@@ -1,8 +1,8 @@
 from argparse import ArgumentParser
 
-from auth import DB_URL_DEV, DB_URL_PROD, TOKEN_DEV, TOKEN_PROD
 from loguru import logger
 
+from auth import DB_URL_DEV, DB_URL_PROD, TOKEN_DEV, TOKEN_PROD
 from ouranos.bot import Ouranos
 from ouranos.utils import log
 

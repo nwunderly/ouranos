@@ -6,8 +6,8 @@ import typing
 from collections import defaultdict
 from typing import Optional
 
-import discord
-from discord.ext import commands, tasks
+import disnake
+from disnake.ext import commands, tasks
 from loguru import logger
 
 from ouranos.dpy.cog import Cog
@@ -83,7 +83,7 @@ async def try_send(user, message):
     try:
         await user.send(message)
         return True
-    except discord.DiscordException:
+    except disnake.DiscordException:
         return False
 
 
@@ -550,7 +550,7 @@ class Moderation(Cog):
             try:
                 await guild.ban(user, reason=audit_reason, delete_message_days=1)
                 success.append(user)
-            except discord.NotFound:
+            except disnake.NotFound:
                 not_found += 1
 
         # dispatch the modlog event
@@ -677,10 +677,10 @@ class Moderation(Cog):
         if can_unban:
             # remove the role
             try:
-                ban = await guild.fetch_ban(discord.Object(user_id))
+                ban = await guild.fetch_ban(disnake.Object(user_id))
                 user = ban.user
                 await guild.unban(user, reason=f"Ban expired (#{infraction_id})")
-            except discord.NotFound:
+            except disnake.NotFound:
                 user = None
         else:
             user = None
@@ -713,7 +713,7 @@ class Moderation(Cog):
 
     @command()
     @server_mod()
-    async def warn(self, ctx, user: discord.Member, *, reason: RequiredReason):
+    async def warn(self, ctx, user: disnake.Member, *, reason: RequiredReason):
         """Applies a warning to a user.
 
         Sends the user a DM and logs this action to the guild's modlog if configured to do so.
@@ -729,7 +729,7 @@ class Moderation(Cog):
     async def mute(
         self,
         ctx,
-        user: discord.Member,
+        user: disnake.Member,
         duration: Optional[Duration],
         *,
         reason: Reason = None,
@@ -830,7 +830,7 @@ class Moderation(Cog):
 
     @command()
     @server_mod()
-    async def kick(self, ctx, user: discord.Member, *, reason: Reason = None):
+    async def kick(self, ctx, user: disnake.Member, *, reason: Reason = None):
         """Kicks a user from the guild.
 
         Sends the user a DM and logs this action to the guild's modlog if configured to do so.
@@ -978,7 +978,7 @@ class Moderation(Cog):
         audit_reason = audit_reason or Reason.format_reason(ctx)
         try:
             users = [
-                discord.Object(int(i))
+                disnake.Object(int(i))
                 for i in (await ctx.message.attachments[0].read()).decode().split()
             ]
         except IndexError:
@@ -1050,7 +1050,7 @@ class Moderation(Cog):
 
     @remove.command(name="channel", aliases=["in"])
     @server_mod()
-    async def rm_channel(self, ctx, channel: discord.TextChannel, limit: int):
+    async def rm_channel(self, ctx, channel: disnake.TextChannel, limit: int):
         """Remove messages in another channel."""
         await self._do_removal(ctx, limit=limit, channel=channel)
 

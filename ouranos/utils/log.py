@@ -3,9 +3,10 @@ import sys
 from collections import deque
 
 import aiohttp
-from auth import WEBHOOK_URL_PROD
-from discord.webhook import AsyncWebhookAdapter, Webhook
+from disnake.webhook import Webhook
 from loguru import logger
+
+from auth import WEBHOOK_URL_PROD
 
 
 class InterceptHandler(logging.Handler):
@@ -33,9 +34,7 @@ def ouranos_or_main(r):
 
 async def webhook_log(msg):
     async with aiohttp.ClientSession() as session:
-        webhook = Webhook.from_url(
-            WEBHOOK_URL_PROD, adapter=AsyncWebhookAdapter(session)
-        )
+        webhook = Webhook.from_url(WEBHOOK_URL_PROD, session=session)
         await webhook.send(f"```\n{msg}\n```")
 
 

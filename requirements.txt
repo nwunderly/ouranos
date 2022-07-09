@@ -1,5 +1,5 @@
-discord.py>=1.7,<=2
-jishaku
+disnake~=2.5
+# jishaku
 PyYaml>=5.4.1,<6
 psutil>=5.8,<6
 tortoise-orm[asyncpg]>=0.17.2,<1
