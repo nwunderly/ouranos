@@ -116,10 +116,7 @@ class General(Cog):
             name="\u200b", value=f"{GIT} Recent commits:\n{revision}", inline=False
         )
 
-        owner = await self.bot.get_or_fetch_member(
-            self.bot.get_guild(Settings.guild_id), Settings.owner_id
-        )
-        embed.set_footer(text=f"made with ❤ by {owner}", icon_url=owner.avatar_url)
+        embed.set_footer(text=f"made with ❤ by nwunder#4003", icon_url="https://avatars.githubusercontent.com/u/48489521?v=4")
         embed.timestamp = self.bot.user.created_at
         await ctx.send(embed=embed)
 
