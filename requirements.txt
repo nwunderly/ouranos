@@ -1,5 +1,5 @@
 disnake~=2.5
-# jishaku
+disnake-jishaku~=2.6
 PyYaml>=5.4.1,<6
 psutil>=5.8,<6
 tortoise-orm[asyncpg]>=0.17.2,<1

@@ -21,7 +21,7 @@ class Settings:
     repo_url = "https://github.com/nwunderly/ouranos"
 
     cogs = [
-        # "jishaku",
+        "jishaku",
         "ouranos.cogs.admin",
         "ouranos.cogs.config",
         "ouranos.cogs.general",
