@@ -142,6 +142,12 @@ class AntiPhish(Cog):
         if not (config and config.anti_phish):
             return
 
+        # ignore messages that don't give us a Member
+        # this is here to avoid an error where the message author is missing
+        # guild permissions for some reason
+        if not isinstance(message.author, disnake.Member):
+            return
+
         # ignore server moderators
         if await is_server_mod(message.author):
             return
