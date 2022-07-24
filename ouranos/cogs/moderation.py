@@ -1008,7 +1008,7 @@ class Moderation(Cog):
 
     async def _do_removal(self, ctx, limit, check=None, channel=None, **kwargs):
         if limit > 2000:
-            raise disnake.InvalidArgument("You cannot delete more than 2000 messages.")
+            raise disnake.BadArgument("You cannot delete more than 2000 messages.")
         if limit >= 200:
             await ctx.confirm_action(
                 f"This will delete up to {limit} messages. Are you sure? (y/n)"
