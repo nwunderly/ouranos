@@ -6,6 +6,8 @@ import typing
 from collections import defaultdict
 from typing import Optional
 
+from discord import InvalidArgument
+
 import disnake
 from disnake.ext import commands, tasks
 from loguru import logger
@@ -1007,6 +1009,8 @@ class Moderation(Cog):
         )
 
     async def _do_removal(self, ctx, limit, check=None, channel=None, **kwargs):
+        if limit > 1000:
+            raise InvalidArgument("You cannot delete more than 1000 messages.")
         if limit >= 200:
             await ctx.confirm_action(
                 f"This will delete up to {limit} messages. Are you sure? (y/n)"
