@@ -752,7 +752,7 @@ class Modlog(Cog):
         parser.add_argument("--mod")
         parser.add_argument("--type", type=infraction_type_converter)
         parser.add_argument(
-            "--active", type=commands.core._convert_to_bool, default=None
+            "--active", type=commands.converter._convert_to_bool, default=None
         )
         parser.add_argument("--or", action="store_true", dest="_or")
         parser.add_argument("--not", action="store_true", dest="_not")
