@@ -182,6 +182,9 @@ class Ouranos(commands.AutoShardedBot):
         logger.exception(f"Ignoring exception in {event_method}:")
 
     async def _respond_to_error(self, ctx, error):
+        if isinstance(error, commands.CommandInvokeError):
+            error = error.original or error
+
         if isinstance(error, commands.UserInputError):
             await ctx.send(f"{TICK_RED} {str(error).capitalize()}")
         elif isinstance(error, UnexpectedError):
@@ -192,20 +195,19 @@ class Ouranos(commands.AutoShardedBot):
             await ctx.send(
                 f"{TICK_RED} I do not have permission to execute this action."
             )
-        elif isinstance(error, commands.CommandInvokeError):
-            error = error.original or error
-            if isinstance(error, disnake.Forbidden):
-                await ctx.send(
-                    f"{TICK_RED} I do not have permission to execute this action."
-                )
-            elif isinstance(error, disnake.NotFound):
-                await ctx.send(
-                    f"{TICK_RED} Not found: {error.text.lower().capitalize()}."
-                )
-            elif isinstance(error, disnake.HTTPException):
-                await ctx.send(
-                    f"{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```"
-                )
+        elif isinstance(error, disnake.NotFound):
+            await ctx.send(
+                f"{TICK_RED} Not found: {error.text.lower().capitalize()}."
+            )
+        elif isinstance(error, disnake.HTTPException):
+            await ctx.send(
+                f"{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```"
+            )
+        else:
+            await ctx.send(
+                f"{TICK_RED} Something went wrong. Maybe try again later?\n"
+                f"(I've reported this error to the developer)"
+            )
 
     async def on_command_error(self, ctx, exception):
         if isinstance(exception, commands.CommandInvokeError):
