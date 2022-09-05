@@ -235,8 +235,12 @@ class Ouranos(commands.AutoShardedBot):
             try:
                 raise exception.with_traceback(exception.__traceback__)
             except exception.__class__:
+                if len(ctx.message.content) > 15:
+                    content = ctx.message.content[:14] + "..."
+                else:
+                    content = ctx.message.content
                 logger.debug(
-                    f"Error invoking command '{ctx.command.qualified_name}' / "
+                    f"Error on command attempt '{content}' / "
                     f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
                     f"channel {ctx.channel.id}, "
                     f"message {ctx.message.id}\n",
