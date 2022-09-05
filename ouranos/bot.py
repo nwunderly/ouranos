@@ -182,9 +182,14 @@ class Ouranos(commands.AutoShardedBot):
         logger.exception(f"Ignoring exception in {event_method}:")
 
     async def _respond_to_error(self, ctx, error):
+        # unpack
         if isinstance(error, commands.CommandInvokeError):
             error = error.original or error
+            commandinvoke = True
+        else:
+            commandinvoke = False
 
+        # error messages
         if isinstance(error, commands.UserInputError):
             await ctx.send(f"{TICK_RED} {str(error).capitalize()}")
         elif isinstance(error, UnexpectedError):
@@ -196,22 +201,25 @@ class Ouranos(commands.AutoShardedBot):
                 f"{TICK_RED} I do not have permission to execute this action."
             )
         elif isinstance(error, disnake.NotFound):
-            await ctx.send(
-                f"{TICK_RED} Not found: {error.text.lower().capitalize()}."
-            )
+            await ctx.send(f"{TICK_RED} Not found: {error.text.lower().capitalize()}.")
         elif isinstance(error, disnake.HTTPException):
             await ctx.send(
                 f"{TICK_RED} An unexpected error occurred:```\n{error.__class__.__name__}: {error.text}\n```"
             )
-        else:
+
+        # final case: all derivative errors of CommandInvokeError
+        elif commandinvoke:
             await ctx.send(
                 f"{TICK_RED} Something went wrong. Maybe try again later?\n"
                 f"(I've reported this error to the developer)"
             )
 
     async def on_command_error(self, ctx, exception):
+        # unpack (and log) CommandInvokeErrors
         if isinstance(exception, commands.CommandInvokeError):
             exc = exception.original or exception
+
+            # log it
             try:
                 raise exc.with_traceback(exc.__traceback__)
             except exc.__class__:
@@ -221,7 +229,21 @@ class Ouranos(commands.AutoShardedBot):
                     f"channel {ctx.channel.id}, "
                     f"message {ctx.message.id}\n"
                 )
-                # f"{''.join(traceback.format_exception(exc.__class__, exc, exc.__traceback__))}")
+
+        # debug log everything else
+        else:
+            try:
+                raise exception.with_traceback(exception.__traceback__)
+            except exception.__class__:
+                logger.debug(
+                    f"Error invoking command '{ctx.command.qualified_name}' / "
+                    f"author {ctx.author.id}, guild {ctx.guild.id if ctx.guild else None}, "
+                    f"channel {ctx.channel.id}, "
+                    f"message {ctx.message.id}\n",
+                    exc_info=True,
+                )
+
+        # respond to error
         try:
             await self._respond_to_error(ctx, exception)
         except disnake.DiscordException:
