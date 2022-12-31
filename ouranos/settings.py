@@ -32,6 +32,7 @@ class Settings:
 
     admins = [
         204414611578028034,  # nwunder
+        352216606098587650,  # BeeMoe
     ]
 
     activities = [
