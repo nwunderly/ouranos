@@ -49,6 +49,8 @@ class Config(Model):
     mod_role_id = fields.BigIntField(default=0)
     dm_on_infraction = fields.BooleanField(default=True)
     anti_phish = fields.BooleanField(default=False)
+    custom_kick_message = fields.TextField(default="")
+    custom_ban_message = fields.TextField(default="")
 
 
 async def get_config(guild):

@@ -51,11 +51,13 @@ class Config(Cog):
     @server_admin()
     async def configure(self, ctx):
         config = await db.get_config(ctx.guild)
+        p = ctx.prefix
         if not config:
-            p = ctx.prefix
             return await ctx.send(
-                f"{TICK_YELLOW} This server is not set up yet. Use {p}init to create a config."
+                f"{TICK_YELLOW} This server is not set up yet. Use `{p}init` to create a config."
             )
+        custom_kick_message = f"<view with {p}config custom_kick_message>" if config.custom_kick_message else "<not defined>"
+        custom_ban_message = f"<view with {p}config custom_ban_message>" if config.custom_ban_message else "<not defined>"
         await ctx.send(
             f"This server's configuration:```\n"
             f"prefix: {config.prefix}\n"
@@ -65,6 +67,8 @@ class Config(Cog):
             f"mod_role: {config.mod_role_id}\n"
             f"dm_on_infraction: {config.dm_on_infraction}\n"
             f"anti_phish: {config.anti_phish}\n"
+            f"custom_kick_message: {custom_kick_message}\n"
+            f"custom_ban_message: {custom_ban_message}\n"
             f"```"
         )
 
@@ -183,6 +187,30 @@ class Config(Cog):
             return await ctx.send(f"anti_phish is set to `{state}` for this server.")
         await db.update_config(config=config, anti_phish=new_setting)
         await ctx.send(f"{TICK_GREEN} anti_phish updated.")
+
+    @configure.command(aliases=["custom-kick-message"])
+    @server_admin()
+    @config_exists(True)
+    async def custom_kick_message(self, ctx, *, message: str = ""):
+        """Add custom content to the alert users are sent before being kicked."""
+        config = await db.get_config(ctx.guild)
+        if message == "":
+            msg = ("\n\n" + config.custom_kick_message) or "<not defined>"
+            return await ctx.send(f"custom_kick_message: {msg}")
+        await db.update_config(config=config, custom_kick_message=message)
+        await ctx.send(f"{TICK_GREEN} custom_kick_message updated.")
+
+    @configure.command(aliases=["custom-ban-message"])
+    @server_admin()
+    @config_exists(True)
+    async def custom_ban_message(self, ctx, *, message: str = ""):
+        """Add custom content to the alert users are sent before being banned."""
+        config = await db.get_config(ctx.guild)
+        if message == "":
+            msg = ("\n\n" + config.custom_ban_message) or "<not defined>"
+            return await ctx.send(f"custom_ban_message: {msg}")
+        await db.update_config(config=config, custom_ban_message=message)
+        await ctx.send(f"{TICK_GREEN} custom_ban_message updated.")
 
 
 def setup(bot):

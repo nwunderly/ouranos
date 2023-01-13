@@ -59,7 +59,13 @@ ALERT_FORMAT = {
 
 
 def format_alert_dm(
-    guild, user, infraction_type, duration=None, reason=None, auto=False
+    guild,
+    user,
+    infraction_type,
+    duration=None,
+    reason=None,
+    auto=False,
+    custom_message="",
 ):
     actioned_in = ALERT_FORMAT[infraction_type]
     if not actioned_in:
@@ -68,6 +74,8 @@ def format_alert_dm(
     if duration:
         msg += f"**Duration**: {exact_timedelta(duration)}\n"
     msg += f"**Reason**: {reason}"
+    if custom_message:
+        msg += f"\n\n{custom_message}"
     return msg
 
 
@@ -405,7 +413,13 @@ class Moderation(Cog):
         # notify the user if the setting is enabled
         # this one has to be done before kicking (for obvious reasons)
         if not config or config.dm_on_infraction:
-            message = format_alert_dm(guild, user, "kick", reason=reason)
+            message = format_alert_dm(
+                guild,
+                user,
+                "kick",
+                reason=reason,
+                custom_message=config.custom_kick_message,
+            )
             delivered = await try_send(user, message)
         else:
             delivered = None
@@ -438,7 +452,12 @@ class Moderation(Cog):
         if not config or config.dm_on_infraction:
             if member:
                 message = format_alert_dm(
-                    guild, user, "ban", reason=reason, duration=duration
+                    guild,
+                    user,
+                    "ban",
+                    reason=reason,
+                    duration=duration,
+                    custom_message=config.custom_ban_message,
                 )
                 delivered = await try_send(user, message)
             else:
