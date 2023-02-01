@@ -544,7 +544,7 @@ class Moderation(Cog):
         )
 
         # filter out already-banned users
-        ban_list = set(b.user.id for b in await guild.bans())
+        ban_list = set(b.user.id for b in await guild.bans().flatten())
         bannable_users = [u for u in users if u.id not in ban_list]
         already_banned = total - len(bannable_users)
 
