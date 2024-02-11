@@ -143,6 +143,7 @@ fur.ly
 fxn.ws
 g00.me
 gg.gg
+go-link.ru
 goo.gl
 goo-gl.me
 goo.lu
