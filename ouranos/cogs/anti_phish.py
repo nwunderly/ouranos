@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 import aiohttp
 import disnake
@@ -49,6 +49,7 @@ class AntiPhish(Cog):
 
     def get_domains(self, content):
         content = content.replace("\u0000", "")  # NUL char handling (temp fix) (TODO)
+        content = unquote(content)  # handle urlquoted domains (ugh)
         urls = [match.group(0) for match in URL_PATTERN.finditer(content)]
 
         # domains = set(urlparse(url).netloc for url in urls)
