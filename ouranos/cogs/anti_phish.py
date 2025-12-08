@@ -35,6 +35,8 @@ URL_PATTERN = re.compile(
     r"https?:\/\/+(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
 )
 
+REMOVE_EXTRA_SLASHES = re.compile(r"(https?://)/+")  # remove everything not inside group
+
 
 class AntiPhish(Cog):
     def __init__(self, bot):
@@ -50,6 +52,7 @@ class AntiPhish(Cog):
     def get_domains(self, content):
         content = content.replace("\u0000", "")  # NUL char handling (temp fix) (TODO)
         content = unquote(content)  # handle urlquoted domains (ugh)
+        content = REMOVE_EXTRA_SLASHES.sub(r"\1", content)
         urls = [match.group(0) for match in URL_PATTERN.finditer(content)]
 
         # domains = set(urlparse(url).netloc for url in urls)
