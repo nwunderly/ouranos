@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.9-slim
 WORKDIR /ouranos
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt
