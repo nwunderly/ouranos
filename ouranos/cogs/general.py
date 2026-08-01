@@ -109,7 +109,7 @@ class General(Cog):
         embed.add_field(name="Source", value=f"[github]({Settings.repo_url})")
         embed.add_field(name="Support server", value=f"[join]({Settings.support_url})")
         # embed.add_field(name="Add me!", value=f'[invite]({Settings.invite_url})')
-        embed.add_field(name="Add me!", value=f"soon:tm:")
+        embed.add_field(name="Privacy policy", value=f"[read]({Settings.privacy_url})")
 
         revision = self.get_last_commits(2)
         embed.add_field(

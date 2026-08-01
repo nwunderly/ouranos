@@ -5,7 +5,7 @@ class Settings:
     version = "1.6.4"
     prefix = "?"
     description = "A simple and opinionated Discord moderation bot."
-    author = "nwunder#4003"
+    author = "nwunder"
 
     embed_color = disnake.Color(0x7289DA)
 
@@ -19,6 +19,7 @@ class Settings:
     invite_url = "https://discord.com/oauth2/authorize?client_id=831312219517091871&scope=bot+applications.commands&permissions=2110258423"
     support_url = "https://discord.gg/d25W5PS"
     repo_url = "https://github.com/nwunderly/ouranos"
+    privacy_url = f"{repo_url}/blob/master/privacy-policy.md"
 
     cogs = [
         "jishaku",
