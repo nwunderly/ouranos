@@ -432,7 +432,7 @@ class Moderation(Cog):
         return delivered
 
     async def _do_ban(
-        self, guild, user, mod, reason, note, audit_reason, duration=None
+        self, guild, user, mod, reason, note, audit_reason, duration=None, purge=False
     ):
         """Bans a user and dispatches the event to the modlog."""
         config = await db.get_config(guild)
@@ -478,8 +478,14 @@ class Moderation(Cog):
             except asyncio.TimeoutError:
                 pass
 
+        # handle purgeban
+        if purge:
+            purge_timedelta = 604800
+        else:
+            purge_timedelta = 0
+
         # ban the user
-        coro = guild.ban(user, reason=audit_reason, delete_message_days=0)
+        coro = guild.ban(user, reason=audit_reason, clean_history_duration=purge_timedelta)
         if member:
             # regular ban
             await coro
@@ -929,10 +935,82 @@ class Moderation(Cog):
                 note=note,
                 audit_reason=audit_reason,
                 duration=duration,
+                purge=False,
             )
             banned = "Forcebanned" if force else "Banned"
             await ctx.send(
                 f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}"
+            )
+
+    @command(aliases=["pban"])
+    @server_mod()
+    async def purgeban(
+        self, ctx, user: UserID, duration: Optional[Duration], *, reason: Reason = None
+    ):
+        """Bans a user from the guild. Purges all messages from the user sent in the last week.
+
+        This will also work if the user is not in the server.
+
+        Sends the user a DM and logs this action to the guild's modlog if configured to do so.
+        """
+        reason, note, audit_reason = reason or (None, None, None)
+        audit_reason = audit_reason or Reason.format_reason(ctx)
+        dt = exact_timedelta(duration) if duration else "permanent"
+
+        try:
+            banned_user, banned_in_guild = await BannedUser().convert(ctx, str(user.id))
+        except commands.BadArgument:
+            banned_user, banned_in_guild = None, None
+
+        # if already banned, edit the duration
+        if banned_user and banned_in_guild:
+            # first make sure they have an infraction. it's hard to edit an infraction that doesn't exist.
+            if await modlog.has_active_infraction(ctx.guild.id, user.id, "ban"):
+                i, edited, old = await self._do_ban_duration_edit(
+                    guild=ctx.guild,
+                    user=user,
+                    new_duration=duration,
+                    edited_by=ctx.author,
+                )
+                old = exact_timedelta(old) if old else "permanent"
+                await ctx.send(
+                    f"{TICK_YELLOW} User is already banned (#{i})"
+                    + (
+                        f", changed duration instead ({old} -> {dt})."
+                        if edited
+                        else "."
+                    )
+                )
+
+            # just kidding, we couldn't find an infraction. let's see if they want to create one.
+            # note: we ask for a confirmation so things don't break when two infractions go through simultaneously
+            else:
+                await ctx.confirm_action(
+                    f"{TICK_YELLOW} This user appears to be banned from this guild, "
+                    f"but does not have any active ban infractions. "
+                    f"Would you like to create an infraction? (y/n)"
+                )
+                await LogEvent(
+                    "ban", ctx.guild, user, ctx.author, reason, note, duration
+                ).dispatch()
+                await ctx.send(OK_HAND)
+
+        # we didn't seem to find anything weird, so let's just ban!
+        else:
+            user, delivered, force = await self._do_ban(
+                guild=ctx.guild,
+                user=user,
+                mod=ctx.author,
+                reason=reason,
+                note=note,
+                audit_reason=audit_reason,
+                duration=duration,
+                purge=True,
+            )
+            banned = "Forcebanned" if force else "Banned"
+            await ctx.send(
+                f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}. "
+                f"7 days of message history were deleted."
             )
 
     @command()
