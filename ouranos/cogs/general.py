@@ -60,7 +60,7 @@ class General(Cog):
 
     def format_commit(self, commit):
         short, _, _ = commit.message.partition("\n")
-        short_sha2 = commit.id.hex[0:6]
+        short_sha2 = str(commit.id)[0:6]
         commit_tz = datetime.timezone(
             datetime.timedelta(minutes=commit.commit_time_offset)
         )
