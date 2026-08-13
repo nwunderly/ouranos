@@ -73,7 +73,7 @@ class General(Cog):
             datetime.datetime.utcnow()
             - commit_time.astimezone(datetime.timezone.utc).replace(tzinfo=None)
         )
-        return f"[`{short_sha2}`]({Settings.repo_url}/commit/{commit.hex}) {short} ({offset} ago)"
+        return f"[`{short_sha2}`]({Settings.repo_url}/commit/{str(commit.id)}) {short} ({offset} ago)"
 
     def get_last_commits(self, count=3):
         repo = pygit2.Repository(".git")
