@@ -5,6 +5,7 @@ from disnake.ext import commands
 from disnake.ext.commands import BadArgument, Converter
 
 from ouranos.utils import db, modlog
+from ouranos.utils.emojis import TICK_YELLOW
 from ouranos.utils.errors import BotMissingPermission, NotConfigured
 from ouranos.utils.format import DAY
 
@@ -194,6 +195,28 @@ class BannedUser(Converter):
             raise e
 
 
+class MessageAuthor(Converter):
+    # this message should never be seen, but is provided in case I end up using
+    # this converter in an unexpected way.
+    BAD_ARGUMENT = "{} is either not a message ID, or the message is not cached."
+
+    async def convert(self, ctx, argument):
+        if argument.isdigit():
+            message_id = int(argument)
+            message = ctx.bot.get_message(message_id)
+            if message and message.guild == ctx.guild:
+                author = message.author
+                try:
+                    await ctx.confirm_action(
+                        f"{TICK_YELLOW} {argument} is a message ID. Did you mean to use the author of the message ({author})? (y/n)"
+                    )
+                except OuranosCommandError:
+                    raise BadArgument(self.BAD_ARGUMENT.format(argument))
+                return author
+
+        raise BadArgument(self.BAD_ARGUMENT.format(argument))
+
+
 class Reason(Converter):
     # pattern = re.compile(r"^(?:([\w ]*\w) *)?(?:--note|-n) +(.+)")
 
@@ -204,10 +227,16 @@ class Reason(Converter):
         else:
             reason, note = (x.strip() for x in split)
 
+        # error if too long (1500 char limit to keep log messages below 2k chars)
+        if len(argument) > 1500:
+            raise BadArgument(f"Reason is too long ({len(argument)}/1500)")
+
+        # truncate audit reason if too long
         r = Reason.format_reason(ctx, reason, note)
         if len(r) > 512:
-            reason_max = 512 - len(r) + len(argument)
-            raise BadArgument(f"Reason is too long ({len(argument)}/{reason_max})")
+            # reason_max = 512 - len(r) + len(argument)
+            # raise BadArgument(f"Reason is too long ({len(argument)}/{reason_max})")
+            r = Reason.format_reason(ctx, reason[:200], note[:200])
 
         return reason or None, note or None, r
 

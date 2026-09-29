@@ -1009,7 +1009,7 @@ class Moderation(Cog):
             )
             banned = "Forcebanned" if force else "Banned"
             await ctx.send(
-                f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)}. "
+                f"{HAMMER} {banned} **{user}** ({dt}). {notified(delivered)} "
                 f"7 days of message history were deleted."
             )
 
